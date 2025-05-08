@@ -26,9 +26,9 @@ interface MonthlyDataItem {
 }
 
 export function PerformanceAnalysis() {
-  const [performanceData, setPerformanceData] = useState<any[]>([]);
+  const [performanceData, setPerformanceData] = useState<ChannelData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<MonthlyDataItem[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1),
     to: new Date()
@@ -63,7 +63,9 @@ export function PerformanceAnalysis() {
         ...item,
         // Ensure month and year are converted to numbers
         month: typeof item.month === 'string' ? parseInt(item.month, 10) : Number(item.month),
-        year: typeof item.year === 'string' ? parseInt(item.year, 10) : Number(item.year)
+        year: typeof item.year === 'string' ? parseInt(item.year, 10) : Number(item.year),
+        total_revenue: Number(item.total_revenue),
+        total_appointments: Number(item.total_appointments)
       }));
 
       setPerformanceData(filteredData);
@@ -86,7 +88,7 @@ export function PerformanceAnalysis() {
     const monthlyData: Record<string, MonthlyDataItem> = {};
     
     data.forEach(item => {
-      // Ensure month and year are numbers, not strings
+      // Ensure month and year are numbers
       const month = Number(item.month);
       const year = Number(item.year);
       
@@ -101,8 +103,7 @@ export function PerformanceAnalysis() {
       }
       
       // Add revenue for this channel - ensure it's a number
-      const revenue = typeof item.total_revenue === 'string' ? 
-        Number(item.total_revenue) : item.total_revenue;
+      const revenue = Number(item.total_revenue);
       
       monthlyData[monthYear][item.channel_name] = revenue;
       
@@ -144,11 +145,11 @@ export function PerformanceAnalysis() {
   };
 
   const getTotalRevenue = () => {
-    return performanceData.reduce((sum, item) => sum + item.total_revenue, 0);
+    return performanceData.reduce((sum, item) => sum + Number(item.total_revenue), 0);
   };
 
   const getTotalAppointments = () => {
-    return performanceData.reduce((sum, item) => sum + item.total_appointments, 0);
+    return performanceData.reduce((sum, item) => sum + Number(item.total_appointments), 0);
   };
 
   const getChannelTotals = () => {
@@ -159,8 +160,8 @@ export function PerformanceAnalysis() {
         totals[item.channel_name] = { revenue: 0, appointments: 0 };
       }
       
-      totals[item.channel_name].revenue += item.total_revenue;
-      totals[item.channel_name].appointments += item.total_appointments;
+      totals[item.channel_name].revenue += Number(item.total_revenue);
+      totals[item.channel_name].appointments += Number(item.total_appointments);
     });
     
     return Object.entries(totals)

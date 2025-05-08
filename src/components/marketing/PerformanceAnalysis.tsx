@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -7,6 +6,7 @@ import { toast } from "sonner";
 import { format } from 'date-fns';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { formatCurrency } from '@/lib/format';
+import { DateRange } from 'react-day-picker';
 
 interface ChannelData {
   channel_name: string;
@@ -32,8 +32,8 @@ export function PerformanceAnalysis() {
   const fetchPerformanceData = async () => {
     setLoading(true);
     try {
-      const startMonth = dateRange.from.getMonth() + 1;
-      const startYear = dateRange.from.getFullYear();
+      const startMonth = dateRange.from ? dateRange.from.getMonth() + 1 : new Date().getMonth() - 5 + 1;
+      const startYear = dateRange.from ? dateRange.from.getFullYear() : new Date().getFullYear();
       const endMonth = dateRange.to ? dateRange.to.getMonth() + 1 : new Date().getMonth() + 1;
       const endYear = dateRange.to ? dateRange.to.getFullYear() : new Date().getFullYear();
 
@@ -48,7 +48,8 @@ export function PerformanceAnalysis() {
         const itemMonth = typeof item.month === 'string' ? parseInt(item.month, 10) : item.month;
         const itemYear = typeof item.year === 'string' ? parseInt(item.year, 10) : item.year;
         const itemDate = new Date(itemYear, itemMonth - 1, 1);
-        return itemDate >= dateRange.from && (!dateRange.to || itemDate <= dateRange.to);
+        return itemDate >= new Date(startYear, startMonth - 1, 1) && 
+               itemDate <= new Date(endYear, endMonth - 1, 1);
       }).map((item: any) => ({
         ...item,
         month: typeof item.month === 'string' ? parseInt(item.month, 10) : Number(item.month),
@@ -99,7 +100,6 @@ export function PerformanceAnalysis() {
     setChartData(sortedData);
   };
 
-  // Collect all channel names for the chart
   const getChannelNames = () => {
     const channelSet = new Set<string>();
     performanceData.forEach(item => {
@@ -108,7 +108,6 @@ export function PerformanceAnalysis() {
     return Array.from(channelSet);
   };
 
-  // Generate random color for each channel
   const getColorForChannel = (channel: string) => {
     // Hash the channel name to get a consistent color
     let hash = 0;
@@ -125,7 +124,6 @@ export function PerformanceAnalysis() {
     return `#${c}`;
   };
 
-  // Calculate totals
   const getTotalRevenue = () => {
     return performanceData.reduce((sum, item) => sum + item.total_revenue, 0);
   };
@@ -167,7 +165,7 @@ export function PerformanceAnalysis() {
         <CardContent>
           <DateRangePicker 
             value={dateRange} 
-            onChange={setDateRange} 
+            onValueChange={setDateRange} 
           />
         </CardContent>
       </Card>

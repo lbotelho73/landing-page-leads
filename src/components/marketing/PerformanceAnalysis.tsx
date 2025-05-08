@@ -46,8 +46,8 @@ export function PerformanceAnalysis() {
       // Filter data based on date range and ensure numeric types
       const filteredData = (data || []).filter((item: any) => {
         // Convert string values to numbers if needed
-        const itemMonth = typeof item.month === 'string' ? parseInt(item.month, 10) : item.month;
-        const itemYear = typeof item.year === 'string' ? parseInt(item.year, 10) : item.year;
+        const itemMonth = typeof item.month === 'string' ? parseInt(item.month, 10) : Number(item.month);
+        const itemYear = typeof item.year === 'string' ? parseInt(item.year, 10) : Number(item.year);
         const itemDate = new Date(itemYear, itemMonth - 1, 1);
         return itemDate >= new Date(startYear, startMonth - 1, 1) && 
                itemDate <= new Date(endYear, endMonth - 1, 1);
@@ -78,12 +78,16 @@ export function PerformanceAnalysis() {
     const monthlyData: Record<string, Record<string, number>> = {};
     
     data.forEach(item => {
-      const monthYear = `${item.year}-${item.month.toString().padStart(2, '0')}`;
+      // Ensure month and year are numbers, not strings
+      const month = Number(item.month);
+      const year = Number(item.year);
+      
+      const monthYear = `${year}-${month.toString().padStart(2, '0')}`;
       
       if (!monthlyData[monthYear]) {
         monthlyData[monthYear] = {
           name: monthYear,
-          month: format(new Date(item.year, item.month - 1, 1), 'MMM/yy')
+          month: format(new Date(year, month - 1, 1), 'MMM/yy')
         };
       }
       

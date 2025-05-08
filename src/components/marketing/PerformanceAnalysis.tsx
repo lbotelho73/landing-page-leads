@@ -17,6 +17,14 @@ interface ChannelData {
   year: number;
 }
 
+// Define interface for monthly chart data
+interface MonthlyDataItem {
+  name: string;
+  month: string;
+  total: number;
+  [key: string]: number | string; // Allow dynamic channel names as properties
+}
+
 export function PerformanceAnalysis() {
   const [performanceData, setPerformanceData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +83,7 @@ export function PerformanceAnalysis() {
     }
 
     // Group by month/year
-    const monthlyData: Record<string, Record<string, number>> = {};
+    const monthlyData: Record<string, MonthlyDataItem> = {};
     
     data.forEach(item => {
       // Ensure month and year are numbers, not strings
@@ -87,8 +95,9 @@ export function PerformanceAnalysis() {
       if (!monthlyData[monthYear]) {
         monthlyData[monthYear] = {
           name: monthYear,
-          month: format(new Date(year, month - 1, 1), 'MMM/yy')
-        } as Record<string, number | string>;
+          month: format(new Date(year, month - 1, 1), 'MMM/yy'),
+          total: 0
+        };
       }
       
       // Add revenue for this channel - ensure it's a number
@@ -98,7 +107,7 @@ export function PerformanceAnalysis() {
       monthlyData[monthYear][item.channel_name] = revenue;
       
       // Add to total - ensure we're adding numbers
-      const currentTotal = Number(monthlyData[monthYear].total) || 0;
+      const currentTotal = monthlyData[monthYear].total || 0;
       monthlyData[monthYear].total = currentTotal + revenue;
     });
     

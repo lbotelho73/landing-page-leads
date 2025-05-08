@@ -10,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { runQuery } from "@/lib/database-helpers";
 
 interface BulkDeleteDialogProps {
   isOpen: boolean;
@@ -76,20 +75,17 @@ export function BulkDeleteDialog({
 
     setIsDeleting(true);
     try {
-      const result = await runQuery(
-        supabase
-          .from(tableType)
-          .delete()
-          .in(idField, selectedItems)
-      );
+      // Using type assertion for the dynamic table name
+      const { error } = await supabase
+        .from(tableType as any)
+        .delete()
+        .in(idField, selectedItems);
 
-      if (result.success) {
-        toast.success(`${selectedItems.length} item(s) excluído(s) com sucesso`);
-        onDeleteComplete();
-        onClose();
-      } else {
-        toast.error("Erro ao excluir itens");
-      }
+      if (error) throw error;
+      
+      toast.success(`${selectedItems.length} item(s) excluído(s) com sucesso`);
+      onDeleteComplete();
+      onClose();
     } catch (error) {
       console.error("Error deleting items:", error);
       toast.error("Erro ao excluir itens");

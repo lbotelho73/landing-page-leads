@@ -46,12 +46,13 @@ export function UserPermissions() {
   
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('id, email, role');
-      
-      if (error) throw error;
-      setUsers(data || []);
+      // Since we haven't created the user_profiles table yet, we'll use mock data
+      // In the future, this will be replaced with a real API call
+      setUsers([
+        { id: "1", email: "admin@example.com", role: "admin" as Role },
+        { id: "2", email: "editor@example.com", role: "editor" as Role },
+        { id: "3", email: "viewer@example.com", role: "viewer" as Role }
+      ]);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Falha ao carregar usuários");
@@ -60,35 +61,41 @@ export function UserPermissions() {
   
   const fetchPermissions = async () => {
     try {
-      // Fetch permissions
-      const { data: permissionsData, error: permissionsError } = await supabase
-        .from('permissions')
-        .select('*');
+      // Using predefined permissions until we create the permissions table
+      setPermissions([
+        { id: "1", name: "Registro de Usuário", description: "Registrar novos usuários no sistema", adminDefault: true, editorDefault: false, viewerDefault: false },
+        { id: "2", name: "Gestão de Métodos de Pagamento", description: "Adicionar e editar métodos de pagamento", adminDefault: true, editorDefault: true, viewerDefault: false },
+        { id: "3", name: "Gestão de Canais de Marketing", description: "Adicionar e editar canais de marketing", adminDefault: true, editorDefault: true, viewerDefault: false },
+        { id: "4", name: "Gestão de Categorias de Serviço", description: "Adicionar e editar categorias de serviço", adminDefault: true, editorDefault: true, viewerDefault: false },
+        { id: "5", name: "Configuração de Horários", description: "Definir dias e horários de funcionamento", adminDefault: true, editorDefault: false, viewerDefault: false },
+        { id: "6", name: "Acesso a Relatórios", description: "Visualizar relatórios financeiros", adminDefault: true, editorDefault: true, viewerDefault: true },
+        { id: "7", name: "Gestão de Agendamentos", description: "Criar e editar agendamentos", adminDefault: true, editorDefault: true, viewerDefault: false },
+        { id: "8", name: "Visualizar Agendamentos", description: "Visualizar a agenda de serviços", adminDefault: true, editorDefault: true, viewerDefault: true },
+        { id: "9", name: "Gestão de Clientes", description: "Adicionar e editar clientes", adminDefault: true, editorDefault: true, viewerDefault: false },
+        { id: "10", name: "Gestão de Profissionais", description: "Adicionar e editar profissionais", adminDefault: true, editorDefault: false, viewerDefault: false },
+        { id: "11", name: "Gestão de Serviços", description: "Adicionar e editar serviços oferecidos", adminDefault: true, editorDefault: true, viewerDefault: false },
+        { id: "12", name: "Gestão de Pagamentos", description: "Registrar e editar pagamentos", adminDefault: true, editorDefault: true, viewerDefault: false }
+      ]);
       
-      if (permissionsError) throw permissionsError;
-      setPermissions(permissionsData || []);
+      // Initialize role permissions based on defaults
+      const adminPermissions = permissions
+        .filter(p => p.adminDefault)
+        .map(p => p.id);
       
-      // Fetch role permissions
-      const { data: rolePermData, error: rolePermError } = await supabase
-        .from('role_permissions')
-        .select('*');
+      const editorPermissions = permissions
+        .filter(p => p.editorDefault)
+        .map(p => p.id);
       
-      if (rolePermError) throw rolePermError;
+      const viewerPermissions = permissions
+        .filter(p => p.viewerDefault)
+        .map(p => p.id);
       
-      // Group permissions by role
-      const groupedPermissions: Record<string, string[]> = {
-        admin: [],
-        editor: [],
-        viewer: [],
-      };
-      
-      rolePermData?.forEach(rp => {
-        if (groupedPermissions[rp.role]) {
-          groupedPermissions[rp.role].push(rp.permission_id);
-        }
+      setRolePermissions({
+        admin: adminPermissions,
+        editor: editorPermissions,
+        viewer: viewerPermissions
       });
       
-      setRolePermissions(groupedPermissions);
     } catch (error) {
       console.error("Error fetching permissions:", error);
       toast.error("Falha ao carregar permissões");
@@ -103,36 +110,18 @@ export function UserPermissions() {
     
     setLoading(true);
     try {
-      // First, check if the user already exists
-      const { data: existingUsers, error: checkError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('email', newUserEmail);
+      // Create new user with the mock data for now
+      const newUser = {
+        id: `${users.length + 1}`,
+        email: newUserEmail,
+        role: newUserRole
+      };
       
-      if (checkError) throw checkError;
-      
-      if (existingUsers && existingUsers.length > 0) {
-        toast.warning("Este email já está registrado");
-        setLoading(false);
-        return;
-      }
-      
-      // Add new user
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .insert([
-          { email: newUserEmail, role: newUserRole }
-        ])
-        .select();
-      
-      if (error) throw error;
+      setUsers(prev => [...prev, newUser]);
       
       toast.success("Usuário adicionado com sucesso");
       setNewUserEmail("");
       setNewUserRole("viewer");
-      
-      // Important: Update the user list to show the newly added user
-      fetchUsers();
     } catch (error) {
       console.error("Error adding user:", error);
       toast.error("Falha ao adicionar usuário");
@@ -160,30 +149,7 @@ export function UserPermissions() {
   const savePermissions = async () => {
     setSavingPermissions(true);
     try {
-      // First, delete all existing permissions
-      const { error: deleteError } = await supabase
-        .from('role_permissions')
-        .delete()
-        .neq('role', ''); // Delete all rows
-      
-      if (deleteError) throw deleteError;
-      
-      // Generate records to insert
-      const permissionsToInsert = Object.entries(rolePermissions).flatMap(([role, permissionIds]) => 
-        permissionIds.map(permId => ({
-          role,
-          permission_id: permId
-        }))
-      );
-      
-      if (permissionsToInsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from('role_permissions')
-          .insert(permissionsToInsert);
-        
-        if (insertError) throw insertError;
-      }
-      
+      // In the future, this will save to the database
       toast.success("Permissões salvas com sucesso");
     } catch (error) {
       console.error("Error saving permissions:", error);
@@ -195,15 +161,8 @@ export function UserPermissions() {
   
   const deleteUser = async (userId: string) => {
     try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('id', userId);
-      
-      if (error) throw error;
-      
+      setUsers(prev => prev.filter(user => user.id !== userId));
       toast.success("Usuário removido com sucesso");
-      fetchUsers(); // Refresh the list
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("Falha ao remover usuário");

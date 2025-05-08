@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload } from "lucide-react";
-import { getFieldTranslation } from "@/lib/database-helpers";
 
 interface FieldMapping {
   sourceField: string;
@@ -50,14 +49,12 @@ export function FieldMappingSection({
                 onValueChange={(value) => updateFieldMapping(index, value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar campo destino" />
+                  <SelectValue placeholder="Selecione um campo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Ignorar este campo</SelectItem>
-                  {tableColumns.map(column => (
-                    <SelectItem key={column} value={column}>
-                      {getFieldTranslation(column)} ({column})
-                    </SelectItem>
+                  {tableColumns.map((column) => (
+                    <SelectItem key={column} value={column}>{column}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -66,8 +63,8 @@ export function FieldMappingSection({
         ))}
       </div>
       
-      <div className="mt-6">
-        <Button
+      <div className="mt-6 flex justify-end">
+        <Button 
           onClick={onImportData}
           className="bg-massage-500 hover:bg-massage-600"
           disabled={isImporting}

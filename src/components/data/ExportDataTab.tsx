@@ -21,9 +21,9 @@ export function ExportDataTab({ tables }: ExportDataTabProps) {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // Fetch data from the selected table
+      // Fetch data from the selected table - using type assertion to handle the dynamic table name
       const { data, error } = await supabase
-        .from(exportTable)
+        .from(exportTable as any)
         .select('*');
       
       if (error) throw error;

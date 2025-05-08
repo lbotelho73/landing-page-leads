@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -52,6 +53,7 @@ export function PerformanceAnalysis() {
                itemDate <= new Date(endYear, endMonth - 1, 1);
       }).map((item: any) => ({
         ...item,
+        // Ensure month and year are converted to numbers
         month: typeof item.month === 'string' ? parseInt(item.month, 10) : Number(item.month),
         year: typeof item.year === 'string' ? parseInt(item.year, 10) : Number(item.year)
       }));

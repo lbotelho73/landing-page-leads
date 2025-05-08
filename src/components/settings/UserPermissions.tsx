@@ -7,26 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { UserProfile, Permission } from "@/database.types";
 
 type Role = "admin" | "editor" | "viewer";
 
-interface User {
-  id: string;
-  email: string;
-  role: Role;
-}
-
-interface Permission {
-  id: string;
-  name: string;
-  description: string;
-  adminDefault: boolean;
-  editorDefault: boolean;
-  viewerDefault: boolean;
-}
-
 export function UserPermissions() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<Record<string, string[]>>({
     admin: [],
@@ -46,13 +32,12 @@ export function UserPermissions() {
   
   const fetchUsers = async () => {
     try {
-      // Since we haven't created the user_profiles table yet, we'll use mock data
-      // In the future, this will be replaced with a real API call
-      setUsers([
-        { id: "1", email: "admin@example.com", role: "admin" as Role },
-        { id: "2", email: "editor@example.com", role: "editor" as Role },
-        { id: "3", email: "viewer@example.com", role: "viewer" as Role }
-      ]);
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*');
+      
+      if (error) throw error;
+      setUsers(data || []);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Falha ao carregar usuários");
@@ -61,39 +46,38 @@ export function UserPermissions() {
   
   const fetchPermissions = async () => {
     try {
-      // Using predefined permissions until we create the permissions table
-      setPermissions([
-        { id: "1", name: "Registro de Usuário", description: "Registrar novos usuários no sistema", adminDefault: true, editorDefault: false, viewerDefault: false },
-        { id: "2", name: "Gestão de Métodos de Pagamento", description: "Adicionar e editar métodos de pagamento", adminDefault: true, editorDefault: true, viewerDefault: false },
-        { id: "3", name: "Gestão de Canais de Marketing", description: "Adicionar e editar canais de marketing", adminDefault: true, editorDefault: true, viewerDefault: false },
-        { id: "4", name: "Gestão de Categorias de Serviço", description: "Adicionar e editar categorias de serviço", adminDefault: true, editorDefault: true, viewerDefault: false },
-        { id: "5", name: "Configuração de Horários", description: "Definir dias e horários de funcionamento", adminDefault: true, editorDefault: false, viewerDefault: false },
-        { id: "6", name: "Acesso a Relatórios", description: "Visualizar relatórios financeiros", adminDefault: true, editorDefault: true, viewerDefault: true },
-        { id: "7", name: "Gestão de Agendamentos", description: "Criar e editar agendamentos", adminDefault: true, editorDefault: true, viewerDefault: false },
-        { id: "8", name: "Visualizar Agendamentos", description: "Visualizar a agenda de serviços", adminDefault: true, editorDefault: true, viewerDefault: true },
-        { id: "9", name: "Gestão de Clientes", description: "Adicionar e editar clientes", adminDefault: true, editorDefault: true, viewerDefault: false },
-        { id: "10", name: "Gestão de Profissionais", description: "Adicionar e editar profissionais", adminDefault: true, editorDefault: false, viewerDefault: false },
-        { id: "11", name: "Gestão de Serviços", description: "Adicionar e editar serviços oferecidos", adminDefault: true, editorDefault: true, viewerDefault: false },
-        { id: "12", name: "Gestão de Pagamentos", description: "Registrar e editar pagamentos", adminDefault: true, editorDefault: true, viewerDefault: false }
-      ]);
+      // Fetch permissions from the database
+      const { data: permissionsData, error: permissionsError } = await supabase
+        .from('permissions')
+        .select('*')
+        .order('name');
       
-      // Initialize role permissions based on defaults
-      const adminPermissions = permissions
-        .filter(p => p.adminDefault)
-        .map(p => p.id);
+      if (permissionsError) throw permissionsError;
       
-      const editorPermissions = permissions
-        .filter(p => p.editorDefault)
-        .map(p => p.id);
+      setPermissions(permissionsData || []);
       
-      const viewerPermissions = permissions
-        .filter(p => p.viewerDefault)
-        .map(p => p.id);
+      // Fetch role permissions
+      const { data: rolePermData, error: rolePermError } = await supabase
+        .from('role_permissions')
+        .select('*');
+      
+      if (rolePermError) throw rolePermError;
+      
+      // Structure role permissions
+      const adminPerms: string[] = [];
+      const editorPerms: string[] = [];
+      const viewerPerms: string[] = [];
+      
+      rolePermData?.forEach(item => {
+        if (item.role === 'admin') adminPerms.push(item.permission_id);
+        else if (item.role === 'editor') editorPerms.push(item.permission_id);
+        else if (item.role === 'viewer') viewerPerms.push(item.permission_id);
+      });
       
       setRolePermissions({
-        admin: adminPermissions,
-        editor: editorPermissions,
-        viewer: viewerPermissions
+        admin: adminPerms,
+        editor: editorPerms,
+        viewer: viewerPerms
       });
       
     } catch (error) {
@@ -110,21 +94,31 @@ export function UserPermissions() {
     
     setLoading(true);
     try {
-      // Create new user with the mock data for now
-      const newUser = {
-        id: `${users.length + 1}`,
-        email: newUserEmail,
-        role: newUserRole
-      };
+      // Create new user in the database
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .insert({
+          email: newUserEmail,
+          role: newUserRole
+        })
+        .select();
       
-      setUsers(prev => [...prev, newUser]);
+      if (error) throw error;
       
-      toast.success("Usuário adicionado com sucesso");
-      setNewUserEmail("");
-      setNewUserRole("viewer");
-    } catch (error) {
+      if (data && data.length > 0) {
+        setUsers(prev => [...prev, data[0]]);
+        toast.success("Usuário adicionado com sucesso");
+        setNewUserEmail("");
+        setNewUserRole("viewer");
+      }
+    } catch (error: any) {
       console.error("Error adding user:", error);
-      toast.error("Falha ao adicionar usuário");
+      
+      if (error.code === '23505') { // Unique constraint violation
+        toast.error("Este email já está registrado");
+      } else {
+        toast.error("Falha ao adicionar usuário");
+      }
     } finally {
       setLoading(false);
     }
@@ -149,7 +143,40 @@ export function UserPermissions() {
   const savePermissions = async () => {
     setSavingPermissions(true);
     try {
-      // In the future, this will save to the database
+      // First, delete existing role permissions
+      const { error: deleteError } = await supabase
+        .from('role_permissions')
+        .delete()
+        .in('role', ['admin', 'editor', 'viewer']);
+      
+      if (deleteError) throw deleteError;
+      
+      // Then insert new permissions for each role
+      const rolesToInsert = [];
+      
+      // Admin permissions
+      for (const permId of rolePermissions.admin) {
+        rolesToInsert.push({ role: 'admin', permission_id: permId });
+      }
+      
+      // Editor permissions
+      for (const permId of rolePermissions.editor) {
+        rolesToInsert.push({ role: 'editor', permission_id: permId });
+      }
+      
+      // Viewer permissions
+      for (const permId of rolePermissions.viewer) {
+        rolesToInsert.push({ role: 'viewer', permission_id: permId });
+      }
+      
+      if (rolesToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('role_permissions')
+          .insert(rolesToInsert);
+        
+        if (insertError) throw insertError;
+      }
+      
       toast.success("Permissões salvas com sucesso");
     } catch (error) {
       console.error("Error saving permissions:", error);
@@ -161,6 +188,13 @@ export function UserPermissions() {
   
   const deleteUser = async (userId: string) => {
     try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
       setUsers(prev => prev.filter(user => user.id !== userId));
       toast.success("Usuário removido com sucesso");
     } catch (error) {

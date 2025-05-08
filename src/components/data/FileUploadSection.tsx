@@ -4,18 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import ptBR from "@/lib/i18n";
 
-interface FileUploadSectionProps {
-  importFormat: string;
-  isImporting: boolean;
-  onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  fileData: any[] | null;
+export interface FileUploadSectionProps {
+  importFormat?: string;
+  isImporting?: boolean;
+  onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  fileData?: any[] | null;
+  onFileData?: (data: any[], fileName: string) => void;
 }
 
 export function FileUploadSection({ 
-  importFormat, 
-  isImporting, 
-  onFileUpload, 
-  fileData 
+  importFormat = "xlsx", 
+  isImporting = false, 
+  onFileUpload,
+  fileData = null,
+  onFileData
 }: FileUploadSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -35,7 +37,7 @@ export function FileUploadSection({
                 : ".json"
           }
           className="hidden"
-          onChange={onFileUpload}
+          onChange={onFileUpload || (() => {})}
           disabled={isImporting}
         />
         <label 

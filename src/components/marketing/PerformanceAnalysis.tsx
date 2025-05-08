@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -12,8 +11,8 @@ interface ChannelData {
   channel_name: string;
   total_appointments: number;
   total_revenue: number;
-  month: number;
-  year: number;
+  month: number;  // Changed type to number
+  year: number;   // Changed type to number
 }
 
 export function PerformanceAnalysis() {
@@ -42,11 +41,18 @@ export function PerformanceAnalysis() {
 
       if (error) throw error;
 
-      // Filter data based on date range
-      const filteredData = (data || []).filter((item: ChannelData) => {
-        const itemDate = new Date(item.year, item.month - 1, 1);
+      // Filter data based on date range and ensure numeric types
+      const filteredData = (data || []).filter((item: any) => {
+        // Convert string values to numbers if needed
+        const itemMonth = typeof item.month === 'string' ? parseInt(item.month) : item.month;
+        const itemYear = typeof item.year === 'string' ? parseInt(item.year) : item.year;
+        const itemDate = new Date(itemYear, itemMonth - 1, 1);
         return itemDate >= dateRange.from && itemDate <= dateRange.to;
-      });
+      }).map((item: any) => ({
+        ...item,
+        month: typeof item.month === 'string' ? parseInt(item.month) : item.month,
+        year: typeof item.year === 'string' ? parseInt(item.year) : item.year
+      }));
 
       setPerformanceData(filteredData);
       processChartData(filteredData);

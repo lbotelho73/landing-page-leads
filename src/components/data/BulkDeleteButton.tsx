@@ -3,9 +3,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { BulkDeleteDialog } from "./BulkDeleteDialog";
+import { DatabaseTablesType } from "@/database.types";
 
 interface BulkDeleteButtonProps {
-  tableType: "customers" | "professionals" | "services" | "appointments";
+  tableType: DatabaseTablesType | "marketing_channels"; // Allow "marketing_channels" explicitly
   buttonVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   buttonText?: string;
   onDeleteComplete: () => void;
@@ -33,6 +34,7 @@ export function BulkDeleteButton({
       case "professionals": return "Excluir Profissionais";
       case "services": return "Excluir Serviços";
       case "appointments": return "Excluir Agendamentos";
+      case "marketing_channels": return "Excluir Canais";
       default: return "Excluir Itens";
     }
   };
@@ -51,7 +53,7 @@ export function BulkDeleteButton({
       <BulkDeleteDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
-        tableType={tableType}
+        tableType={tableType as any}
         items={items}
         onDeleteComplete={onDeleteComplete}
         idField={idField}

@@ -6,8 +6,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
+import { DatabaseTablesType } from "@/database.types";
 
-export function ImportDataTab() {
+interface ImportDataTabProps {
+  tables: { id: string; name: string }[];
+}
+
+export function ImportDataTab({ tables }: ImportDataTabProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [fileData, setFileData] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -115,8 +120,9 @@ export function ImportDataTab() {
       let errorCount = 0;
       
       for (const batch of batches) {
+        // Use type assertion for dynamic table name
         const { data, error } = await supabase
-          .from(targetTable)
+          .from(targetTable as DatabaseTablesType)
           .insert(batch)
           .select();
         

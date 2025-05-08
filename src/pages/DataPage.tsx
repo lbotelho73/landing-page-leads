@@ -23,7 +23,9 @@ export default function DataPage() {
     { id: "appointments", name: "Agendamentos" },
     { id: "payment_methods", name: "Métodos de Pagamento" },
     { id: "marketing_channels", name: "Canais de Marketing" },
-    { id: "service_categories", name: "Categorias de Serviço" }
+    { id: "service_categories", name: "Categorias de Serviço" },
+    { id: "user_profiles", name: "Perfis de Usuários" },
+    { id: "permissions", name: "Permissões" }
   ];
 
   // Check if tables exist

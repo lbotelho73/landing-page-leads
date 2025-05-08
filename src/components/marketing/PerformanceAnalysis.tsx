@@ -92,10 +92,11 @@ export function PerformanceAnalysis() {
       }
       
       // Add revenue for this channel
-      monthlyData[monthYear][item.channel_name] = item.total_revenue;
+      monthlyData[monthYear][item.channel_name] = Number(item.total_revenue);
       
       // Add to total
-      monthlyData[monthYear].total = (monthlyData[monthYear].total || 0) + item.total_revenue;
+      const currentTotal = monthlyData[monthYear].total || 0;
+      monthlyData[monthYear].total = currentTotal + Number(item.total_revenue);
     });
     
     // Sort by date

@@ -88,15 +88,18 @@ export function PerformanceAnalysis() {
         monthlyData[monthYear] = {
           name: monthYear,
           month: format(new Date(year, month - 1, 1), 'MMM/yy')
-        };
+        } as Record<string, number | string>;
       }
       
-      // Add revenue for this channel
-      monthlyData[monthYear][item.channel_name] = Number(item.total_revenue);
+      // Add revenue for this channel - ensure it's a number
+      const revenue = typeof item.total_revenue === 'string' ? 
+        Number(item.total_revenue) : item.total_revenue;
       
-      // Add to total
-      const currentTotal = monthlyData[monthYear].total || 0;
-      monthlyData[monthYear].total = currentTotal + Number(item.total_revenue);
+      monthlyData[monthYear][item.channel_name] = revenue;
+      
+      // Add to total - ensure we're adding numbers
+      const currentTotal = Number(monthlyData[monthYear].total) || 0;
+      monthlyData[monthYear].total = currentTotal + revenue;
     });
     
     // Sort by date

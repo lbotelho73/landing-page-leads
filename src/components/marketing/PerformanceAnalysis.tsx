@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -11,15 +12,15 @@ interface ChannelData {
   channel_name: string;
   total_appointments: number;
   total_revenue: number;
-  month: number;  // Changed type to number
-  year: number;   // Changed type to number
+  month: number;
+  year: number;
 }
 
 export function PerformanceAnalysis() {
   const [performanceData, setPerformanceData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<any[]>([]);
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1),
     to: new Date()
   });
@@ -33,8 +34,8 @@ export function PerformanceAnalysis() {
     try {
       const startMonth = dateRange.from.getMonth() + 1;
       const startYear = dateRange.from.getFullYear();
-      const endMonth = dateRange.to.getMonth() + 1;
-      const endYear = dateRange.to.getFullYear();
+      const endMonth = dateRange.to ? dateRange.to.getMonth() + 1 : new Date().getMonth() + 1;
+      const endYear = dateRange.to ? dateRange.to.getFullYear() : new Date().getFullYear();
 
       // Use the rpc function to get combined marketing performance
       const { data, error } = await supabase.rpc('get_marketing_performance_combined');
@@ -44,14 +45,14 @@ export function PerformanceAnalysis() {
       // Filter data based on date range and ensure numeric types
       const filteredData = (data || []).filter((item: any) => {
         // Convert string values to numbers if needed
-        const itemMonth = typeof item.month === 'string' ? parseInt(item.month) : item.month;
-        const itemYear = typeof item.year === 'string' ? parseInt(item.year) : item.year;
+        const itemMonth = typeof item.month === 'string' ? parseInt(item.month, 10) : item.month;
+        const itemYear = typeof item.year === 'string' ? parseInt(item.year, 10) : item.year;
         const itemDate = new Date(itemYear, itemMonth - 1, 1);
-        return itemDate >= dateRange.from && itemDate <= dateRange.to;
+        return itemDate >= dateRange.from && (!dateRange.to || itemDate <= dateRange.to);
       }).map((item: any) => ({
         ...item,
-        month: typeof item.month === 'string' ? parseInt(item.month) : item.month,
-        year: typeof item.year === 'string' ? parseInt(item.year) : item.year
+        month: typeof item.month === 'string' ? parseInt(item.month, 10) : Number(item.month),
+        year: typeof item.year === 'string' ? parseInt(item.year, 10) : Number(item.year)
       }));
 
       setPerformanceData(filteredData);

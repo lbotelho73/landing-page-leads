@@ -409,7 +409,7 @@ export default function MarketingPage() {
               <div className="flex gap-2">
                 <DateRangePicker 
                   value={dateRange}
-                  onValueChange={setDateRange}
+                  onChange={setDateRange}
                 />
                 
                 <Button 

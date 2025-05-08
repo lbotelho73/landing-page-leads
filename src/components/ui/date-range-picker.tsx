@@ -13,16 +13,24 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export interface DateRangePickerProps {
-  value: DateRange;
-  onChange: (date: DateRange) => void;
+  value: DateRange | undefined;
+  onChange?: (date: DateRange | undefined) => void;
+  onValueChange?: (date: DateRange | undefined) => void;
   className?: string;
 }
 
 export function DateRangePicker({
   value,
   onChange,
+  onValueChange,
   className,
 }: DateRangePickerProps) {
+  const handleDateChange = (date: DateRange | undefined) => {
+    // Call both handlers to support both naming conventions
+    if (onChange) onChange(date);
+    if (onValueChange) onValueChange(date);
+  };
+
   return (
     <div className={className}>
       <Popover>
@@ -31,7 +39,7 @@ export function DateRangePicker({
             id="date"
             variant={"outline"}
             className={`w-full justify-start text-left font-normal ${
-              !value && "text-muted-foreground"
+              !value?.from && "text-muted-foreground"
             }`}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -55,9 +63,10 @@ export function DateRangePicker({
             mode="range"
             defaultMonth={value?.from}
             selected={value}
-            onSelect={onChange}
+            onSelect={handleDateChange}
             locale={ptBR}
             numberOfMonths={2}
+            className="pointer-events-auto"
           />
         </PopoverContent>
       </Popover>

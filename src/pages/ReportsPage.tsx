@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,8 +121,10 @@ export default function ReportsPage() {
       appointments.forEach(appointment => {
         if (appointment.services) {
           const serviceId = appointment.service_id || 'unknown';
-          const serviceName = appointment.services.name || 'Sem Nome';
-          const serviceDuration = appointment.services.duration || 0;
+          // Fix accessing properties by ensuring services is an object, not an array
+          const serviceData = appointment.services as { name?: string; duration?: number };
+          const serviceName = serviceData.name || 'Sem Nome';
+          const serviceDuration = serviceData.duration || 0;
           const servicePrice = parseFloat(appointment.service_price) || 0;
 
           if (servicesMap.has(serviceId)) {
@@ -161,8 +162,10 @@ export default function ReportsPage() {
       appointments.forEach(appointment => {
         if (appointment.professionals) {
           const professionalId = appointment.primary_professional_id || 'unknown';
-          const professionalName = appointment.professionals.alias_name ||
-            `${appointment.professionals.first_name} ${appointment.professionals.last_name}`;
+          // Fix accessing properties by ensuring professionals is an object, not an array
+          const professionalData = appointment.professionals as { alias_name?: string; first_name?: string; last_name?: string };
+          const professionalName = professionalData.alias_name ||
+            `${professionalData.first_name} ${professionalData.last_name}`;
           const servicePrice = parseFloat(appointment.service_price) || 0;
 
           if (professionalsMap.has(professionalId)) {
@@ -341,7 +344,7 @@ export default function ReportsPage() {
           <CardContent>
             <DateRangePicker
               value={dateRange}
-              onValueChange={setDateRange}
+              onChange={setDateRange}
               className="w-full"
             />
           </CardContent>

@@ -1,133 +1,155 @@
 
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload } from "lucide-react";
 
-export interface FieldMapping {
-  sourceField: string;
-  targetField: string;
+interface FieldMappingProps {
+  csvHeaders: string[];
+  tableColumns: string[];
+  mappings: Record<string, string>;
+  onMappingChange: (csvField: string, dbField: string) => void;
+  onTableChange: (table: string) => void;
+  selectedTable: string | null;
+  tables: { id: string; name: string }[];
 }
 
-export interface FieldMappingSectionProps {
-  fieldMappings?: FieldMapping[];
-  tableColumns?: string[];
-  updateFieldMapping?: (index: number, targetField: string) => void;
-  onImportData?: () => void;
-  isImporting?: boolean;
-  csvHeaders?: string[];
-  mappings?: Record<string, string>;
-  onMappingChange?: (csvField: string, dbField: string) => void;
-  onTableChange?: (table: string) => void;
-  selectedTable?: string | null;
-}
-
-export function FieldMappingSection({ 
-  fieldMappings = [], 
-  tableColumns = [], 
-  updateFieldMapping,
-  onImportData,
-  isImporting = false,
-  csvHeaders = [],
-  mappings = {},
+export function FieldMappingSection({
+  csvHeaders,
+  tableColumns,
+  mappings,
   onMappingChange,
   onTableChange,
-  selectedTable
-}: FieldMappingSectionProps) {
-  // If we have csvHeaders and mappings, use those instead of fieldMappings
-  const useNewProps = csvHeaders.length > 0 && onMappingChange !== undefined;
+  selectedTable,
+  tables
+}: FieldMappingProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredHeaders, setFilteredHeaders] = useState<string[]>(csvHeaders);
   
-  if (useNewProps) {
-    return (
-      <div className="mt-6">
-        <h3 className="text-sm font-medium mb-2">Mapeamento de Campos</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Associe os campos do arquivo com os campos correspondentes no banco de dados
-        </p>
-        
-        <div className="space-y-3">
-          {csvHeaders.map((header) => (
-            <div key={header} className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-muted-foreground">Campo no arquivo</label>
-                <Input value={header} disabled />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">Campo na tabela</label>
-                <Select 
-                  value={mappings[header] || ""} 
-                  onValueChange={(value) => onMappingChange(header, value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um campo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Ignorar este campo</SelectItem>
-                    {tableColumns.map((column) => (
-                      <SelectItem key={column} value={column}>{column}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+  useEffect(() => {
+    // Filter CSV headers based on search term
+    if (searchTerm) {
+      const filtered = csvHeaders.filter(header => 
+        header.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredHeaders(filtered);
+    } else {
+      setFilteredHeaders(csvHeaders);
+    }
+  }, [searchTerm, csvHeaders]);
+  
+  const guessMatchingColumn = (csvHeader: string): string => {
+    // Simple logic to guess matching column
+    const normalized = csvHeader.toLowerCase().replace(/[_\s]/g, '');
+    
+    // Try exact match first
+    let match = tableColumns.find(
+      col => col.toLowerCase() === csvHeader.toLowerCase()
     );
-  }
+    
+    if (match) return match;
+    
+    // Try to match without spaces and underscores
+    match = tableColumns.find(
+      col => col.toLowerCase().replace(/[_\s]/g, '') === normalized
+    );
+    
+    if (match) return match;
+    
+    // Try partial match
+    match = tableColumns.find(
+      col => col.toLowerCase().includes(normalized) || normalized.includes(col.toLowerCase())
+    );
+    
+    return match || "";
+  };
   
-  // Original implementation for backward compatibility
-  if (fieldMappings.length === 0) {
-    return null;
-  }
+  // Auto-map fields that look similar
+  useEffect(() => {
+    if (csvHeaders.length > 0 && tableColumns.length > 0) {
+      const initialMappings: Record<string, string> = {};
+      
+      csvHeaders.forEach(header => {
+        const guess = guessMatchingColumn(header);
+        if (guess) {
+          initialMappings[header] = guess;
+          onMappingChange(header, guess);
+        }
+      });
+    }
+  }, [csvHeaders, tableColumns]); // eslint-disable-line react-hooks/exhaustive-deps
   
   return (
-    <div className="mt-6">
-      <h3 className="text-sm font-medium mb-2">Mapeamento de Campos</h3>
-      <p className="text-sm text-muted-foreground mb-4">
-        Associe os campos do arquivo com os campos correspondentes no banco de dados
-      </p>
-      
-      <div className="space-y-3">
-        {fieldMappings.map((mapping, index) => (
-          <div key={index} className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-muted-foreground">Campo no arquivo</label>
-              <Input value={mapping.sourceField} disabled />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Campo na tabela</label>
-              <Select 
-                value={mapping.targetField} 
-                onValueChange={(value) => updateFieldMapping && updateFieldMapping(index, value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um campo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Ignorar este campo</SelectItem>
-                  {tableColumns.map((column) => (
-                    <SelectItem key={column} value={column}>{column}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+    <Card>
+      <CardContent className="pt-6">
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col space-y-2">
+            <Label htmlFor="table-select">Selecione a tabela para importação</Label>
+            <Select 
+              value={selectedTable || ''} 
+              onValueChange={onTableChange}
+            >
+              <SelectTrigger id="table-select" className="w-full">
+                <SelectValue placeholder="Selecione a tabela" />
+              </SelectTrigger>
+              <SelectContent>
+                {tables.map((table) => (
+                  <SelectItem key={table.id} value={table.id}>{table.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        ))}
-      </div>
-      
-      {onImportData && (
-        <div className="mt-6 flex justify-end">
-          <Button 
-            onClick={onImportData}
-            className="bg-massage-500 hover:bg-massage-600"
-            disabled={isImporting}
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            {isImporting ? "Importando..." : "Importar Dados"}
-          </Button>
+          
+          <div>
+            <Label htmlFor="search-field">Buscar campos</Label>
+            <Input
+              id="search-field"
+              type="text"
+              placeholder="Filtrar campos CSV..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="mb-4"
+            />
+          </div>
         </div>
-      )}
-    </div>
+        
+        <div className="space-y-4 max-h-[400px] overflow-y-auto">
+          {filteredHeaders.length === 0 ? (
+            <div className="text-center text-muted-foreground py-4">
+              Nenhum campo encontrado
+            </div>
+          ) : (
+            filteredHeaders.map((header) => (
+              <div key={header} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <div className="font-medium truncate">{header}</div>
+                <div className="col-span-2">
+                  <Select 
+                    value={mappings[header] || ''} 
+                    onValueChange={(value) => onMappingChange(header, value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar coluna" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Ignorar este campo</SelectItem>
+                      {tableColumns.map((column) => (
+                        <SelectItem key={column} value={column}>{column}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

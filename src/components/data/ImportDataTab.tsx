@@ -206,6 +206,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
             onMappingChange={handleMappingChange}
             onTableChange={handleTableChange}
             selectedTable={targetTable}
+            tables={tables}
           />
           
           <div className="flex justify-between mt-6">

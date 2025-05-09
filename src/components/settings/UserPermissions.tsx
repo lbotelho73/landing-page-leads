@@ -193,7 +193,7 @@ export function UserPermissions() {
       const { error: deleteError } = await supabase
         .from('role_permissions')
         .delete()
-        .gte('id', ''); // Delete all records
+        .gte('id', '');
       
       if (deleteError) {
         console.error("Error deleting existing permissions:", deleteError);
@@ -246,32 +246,115 @@ export function UserPermissions() {
     }
   };
   
-  // New function to update user roles
+  // Função para atualizar os papéis dos usuários no banco de dados auth
   const updateUserRoles = async () => {
     try {
-      // For each user in user_profiles, update their role-specific permissions
+      // Para cada usuário, atualize suas permissões específicas de papel
       for (const user of users) {
         if (!user.role) continue;
         
         const userRole = user.role;
-        console.log(`Updating permissions for user ${user.email} with role ${userRole}`);
+        console.log(`Atualizando permissões para o usuário ${user.email} com papel ${userRole}`);
         
-        // Try to update permissions in auth.users if we have access
+        // Tentar atualizar permissões em auth.users se tivermos acesso
         try {
-          await supabase.auth.admin.updateUserById(user.id, {
-            app_metadata: { role: userRole }
-          });
+          const { error: authError } = await supabase.auth.admin.updateUserById(
+            user.id, 
+            { app_metadata: { role: userRole } }
+          );
+          
+          if (!authError) {
+            console.log(`Permissões atualizadas para o usuário ${user.email} em auth.users`);
+          } else {
+            console.error(`Erro ao atualizar permissões em auth.users:`, authError);
+            
+            // Atualizar no user_profiles como fallback
+            const { error: userProfileError } = await supabase
+              .from('user_profiles')
+              .update({ role: userRole })
+              .eq('id', user.id);
+              
+            if (userProfileError) {
+              console.error(`Erro ao atualizar permissões em user_profiles:`, userProfileError);
+            }
+          }
         } catch (authError) {
-          console.log("Cannot update auth user roles:", authError);
+          console.log("Não é possível atualizar funções de usuários auth:", authError);
+          
+          // Atualizar no user_profiles como fallback
+          const { error: userProfileError } = await supabase
+            .from('user_profiles')
+            .update({ role: userRole })
+            .eq('id', user.id);
+            
+          if (userProfileError) {
+            console.error(`Erro ao atualizar permissões em user_profiles:`, userProfileError);
+          }
         }
       }
     } catch (error) {
-      console.error("Error updating user roles:", error);
+      console.error("Erro ao atualizar funções de usuários:", error);
+      throw error;
+    }
+  };
+  
+  const changeUserRole = async (userId: string, newRole: Role) => {
+    try {
+      // Primeiro tenta atualizar o usuário autenticado
+      try {
+        const { error: authError } = await supabase.auth.admin.updateUserById(
+          userId, 
+          { app_metadata: { role: newRole } }
+        );
+        
+        if (!authError) {
+          // Atualize o estado local após sucesso
+          setUsers(prev => prev.map(u => 
+            u.id === userId ? {...u, role: newRole} : u
+          ));
+          toast.success("Papel do usuário atualizado com sucesso");
+          return;
+        }
+      } catch (authError) {
+        console.log("Não é possível atualizar o usuário auth:", authError);
+      }
+      
+      // Fallback para user_profiles
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+      
+      if (profileError) throw profileError;
+      
+      // Atualize o estado local após sucesso
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? {...u, role: newRole} : u
+      ));
+      
+      toast.success("Papel do usuário atualizado com sucesso");
+    } catch (error) {
+      console.error("Erro ao atualizar papel do usuário:", error);
+      toast.error("Falha ao atualizar papel do usuário");
     }
   };
   
   const deleteUser = async (userId: string) => {
     try {
+      // Primeiro tenta excluir o usuário autenticado
+      try {
+        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+        
+        if (!authError) {
+          setUsers(prev => prev.filter(user => user.id !== userId));
+          toast.success("Usuário removido com sucesso");
+          return;
+        }
+      } catch (authError) {
+        console.log("Não é possível excluir o usuário auth:", authError);
+      }
+      
+      // Fallback para user_profiles
       const { error } = await supabase
         .from('user_profiles')
         .delete()
@@ -282,7 +365,7 @@ export function UserPermissions() {
       setUsers(prev => prev.filter(user => user.id !== userId));
       toast.success("Usuário removido com sucesso");
     } catch (error) {
-      console.error("Error deleting user:", error);
+      console.error("Erro ao excluir usuário:", error);
       toast.error("Falha ao remover usuário");
     }
   };
@@ -344,13 +427,28 @@ export function UserPermissions() {
                        user.role === 'editor' ? 'Editor' : 'Visualizador'}
                     </p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => deleteUser(user.id)}
-                  >
-                    Remover
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    <Select 
+                      value={user.role || "viewer"} 
+                      onValueChange={(value: Role) => changeUserRole(user.id, value)}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="editor">Editor</SelectItem>
+                        <SelectItem value="viewer">Visualizador</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => deleteUser(user.id)}
+                    >
+                      Remover
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

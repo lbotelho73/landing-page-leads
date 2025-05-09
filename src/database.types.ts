@@ -20,10 +20,12 @@ export type DatabaseViewsType =
   | "daily_revenue"
   | "marketing_performance";
 
+export type UserProfileRole = "admin" | "editor" | "viewer";
+
 export interface UserProfile {
   id: string;
   email: string;
-  role: "admin" | "editor" | "viewer";
+  role: UserProfileRole;
   created_at?: string;
 }
 
@@ -37,7 +39,21 @@ export interface Permission {
 
 export interface RolePermission {
   id: string;
-  role: string;
+  role: UserProfileRole;
   permission_id: string;
   created_at?: string;
+}
+
+// Helper function to cast table names for type safety
+export function asDbTable<T extends DatabaseTablesType>(tableName: T): T;
+export function asDbTable(tableName: string): DatabaseTablesType;
+export function asDbTable(tableName: string | DatabaseTablesType): DatabaseTablesType {
+  return tableName as DatabaseTablesType;
+}
+
+// Helper function to cast view names for type safety
+export function asDbView<T extends DatabaseViewsType>(viewName: T): T;
+export function asDbView(viewName: string): DatabaseViewsType;
+export function asDbView(viewName: string | DatabaseViewsType): DatabaseViewsType {
+  return viewName as DatabaseViewsType;
 }

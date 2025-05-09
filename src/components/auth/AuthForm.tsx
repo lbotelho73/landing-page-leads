@@ -6,10 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import ptBR from "@/lib/i18n";
 import { AlertCircle } from "lucide-react";
+import { UserProfileRole } from "@/database.types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function AuthForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +25,7 @@ export function AuthForm() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<UserProfileRole>("viewer");
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
@@ -58,6 +67,7 @@ export function AuthForm() {
     }
     
     try {
+      // 1. Create the auth user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -71,6 +81,22 @@ export function AuthForm() {
       if (error) {
         setError(error.message);
         return;
+      }
+      
+      // 2. If user was created, create or update the user profile
+      if (data?.user) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .upsert({
+            id: data.user.id,
+            email: email,
+            role: role
+          });
+          
+        if (profileError) {
+          console.error("Error creating user profile:", profileError);
+          toast.error("Erro ao criar perfil de usuário");
+        }
       }
       
       toast.success("Cadastro realizado com sucesso!", {
@@ -244,6 +270,22 @@ export function AuthForm() {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)} 
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="user-role">Função</Label>
+                <Select
+                  value={role}
+                  onValueChange={(value: UserProfileRole) => setRole(value)}
+                >
+                  <SelectTrigger id="user-role">
+                    <SelectValue placeholder="Selecione uma função" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="editor">Editor</SelectItem>
+                    <SelectItem value="viewer">Visualizador</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">

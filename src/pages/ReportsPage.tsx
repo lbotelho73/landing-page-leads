@@ -104,9 +104,11 @@ export default function ReportsPage() {
         if (!appointment.primary_professional_id || !appointment.professionals) return acc;
         
         const professionalId = appointment.primary_professional_id;
+        // Fix: professionals is an object, not an array
         const professional = appointment.professionals;
-        // Access properties correctly from the professional object, not as an array
-        const professionalName = `${professional.first_name} ${professional.last_name}`;
+        
+        // Fix: Access properties from the professional object
+        const professionalName = `${professional.first_name || ''} ${professional.last_name || ''}`.trim();
         const commissionPercentage = professional.commission_percentage || 0;
         const finalPrice = parseFloat(appointment.final_price) || 0;
         const commission = (finalPrice * commissionPercentage) / 100;

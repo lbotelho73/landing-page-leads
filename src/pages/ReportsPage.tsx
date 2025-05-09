@@ -105,6 +105,7 @@ export default function ReportsPage() {
         
         const professionalId = appointment.primary_professional_id;
         const professional = appointment.professionals;
+        // Access properties correctly from the professional object, not as an array
         const professionalName = `${professional.first_name} ${professional.last_name}`;
         const commissionPercentage = professional.commission_percentage || 0;
         const finalPrice = parseFloat(appointment.final_price) || 0;

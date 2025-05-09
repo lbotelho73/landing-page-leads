@@ -32,11 +32,10 @@ export function BulkDeleteButton({
     try {
       console.log(`Executing bulk delete on table: ${tableName}`);
       
-      // Cast to string to avoid TypeScript recursion issues, then use type assertion
-      const tableNameStr = tableName as string;
-      
+      // Solução para evitar o erro de recursão de tipo
+      // Usando type assertion diretamente com DatabaseTablesType
       const deleteQuery = supabase
-        .from(tableNameStr)
+        .from(tableName as DatabaseTablesType)
         .delete();
       
       // Apply custom filter if provided

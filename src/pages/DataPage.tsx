@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +9,7 @@ import { ImportDataTab } from "@/components/data/ImportDataTab";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { checkAndInitializeTable } from "@/lib/database-helpers";
+import { asDbTable } from "@/lib/database-types";
 
 export default function DataPage() {
   const [activeTab, setActiveTab] = useState("export");

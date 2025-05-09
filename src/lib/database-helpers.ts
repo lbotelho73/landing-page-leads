@@ -53,7 +53,7 @@ export async function getTableSchemas(tableNames: DatabaseTablesType[]): Promise
   
   for (const tableName of tableNames) {
     try {
-      const { data, error } = await supabase.rpc('get_table_columns', { 
+      const { data, error } = await supabase.rpc("get_table_columns", { 
         table_name: tableName 
       });
       
@@ -76,18 +76,29 @@ export async function getAllTables(): Promise<{ name: string; columns: string[] 
   const tables: { name: string; columns: string[] }[] = [];
   
   try {
-    // This needs to be a raw SQL query since we're accessing information_schema
-    // which isn't in the typed tables
+    // Use a raw query instead of RPC to get all tables
     const { data, error } = await supabase
-      .rpc('get_all_tables');
+      .rpc("get_table_columns", { table_name: "tables" });
       
     if (error) throw error;
     
+    // If we have data, process it
     if (data && Array.isArray(data)) {
-      for (const table of data) {
-        const columns = await getTableColumns(asDbTable(table.table_name));
+      // Since we're not getting table_name property directly anymore,
+      // we need to extract unique table names from the columns information
+      const tableNames = [...new Set(data.map(item => 
+        // Extract table name from column info or use a default
+        typeof item === 'string' ? item.split('.')[0] : 'unknown'
+      ))];
+      
+      // Now fetch columns for each identified table
+      for (const tableName of tableNames) {
+        // Skip system tables or other non-standard tables
+        if (tableName.startsWith('pg_') || tableName === 'unknown') continue;
+        
+        const columns = await getTableColumns(asDbTable(tableName));
         tables.push({
-          name: table.table_name,
+          name: tableName,
           columns
         });
       }
@@ -105,7 +116,7 @@ export async function getAllTables(): Promise<{ name: string; columns: string[] 
  */
 export async function getTableColumns(tableName: DatabaseTablesType): Promise<string[]> {
   try {
-    const { data, error } = await supabase.rpc('get_table_columns', { 
+    const { data, error } = await supabase.rpc("get_table_columns", { 
       table_name: tableName 
     });
     

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ import type { Customer } from "@/lib/supabase";
 import ptBR from "@/lib/i18n";
 import { Trash2 } from "lucide-react";
 import { BulkDeleteDialog } from "@/components/data/BulkDeleteDialog";
+import { BulkDeleteButton } from "@/components/data/BulkDeleteButton";
+import { asDbTable } from "@/lib/database-types";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -195,7 +198,8 @@ export default function CustomersPage() {
     setOpen(true);
   };
   
-  const handleDeleteSelected = () => {
+  // Make this function async since it uses await
+  const handleDeleteSelected = async () => {
     if (!customerToDelete) return;
     
     try {
@@ -222,14 +226,12 @@ export default function CustomersPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">{ptBR.customers}</h1>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              className="border-red-500 text-red-500 hover:bg-red-50"
-              onClick={() => setBulkDeleteOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Excluir em Massa
-            </Button>
+            <BulkDeleteButton
+              tableName={asDbTable("customers")}
+              onSuccess={fetchCustomers}
+              buttonText="Excluir em Massa"
+              buttonVariant="outline"
+            />
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-massage-500 hover:bg-massage-600" onClick={resetForm}>
@@ -407,14 +409,6 @@ export default function CustomersPage() {
             )}
           </CardContent>
         </Card>
-        
-        <BulkDeleteDialog
-          open={bulkDeleteOpen}
-          onOpenChange={setBulkDeleteOpen}
-          onConfirm={() => handleDeleteSelected()}
-          isDeleting={false}
-          entityName="clientes"
-        />
         
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>

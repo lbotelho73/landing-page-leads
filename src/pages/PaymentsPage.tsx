@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ptBR } from '@/lib/i18n';
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateForSupabase } from "@/integrations/supabase/client";
+import { formatDateForSupabase } from "@/lib/supabase-utils";
 import { PaymentFilter } from "@/components/payments/PaymentFilter";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
@@ -112,11 +111,13 @@ export default function PaymentsPage() {
   const markAsPaid = async (id: string) => {
     try {
       const paymentDate = new Date();
+      const formattedDate = formatDateForSupabase(paymentDate);
+      
       const { error } = await supabase
         .from('appointments')
         .update({ 
           professional_payment_status: 'Paid',
-          professional_payment_date: paymentDate
+          professional_payment_date: formattedDate
         })
         .eq('id', id);
         

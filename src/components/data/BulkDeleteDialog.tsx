@@ -17,6 +17,8 @@ interface BulkDeleteDialogProps {
   onConfirm: () => void;
   isDeleting: boolean;
   entityName: string;
+  isOpen?: boolean; // Alias for open for compatibility
+  onClose?: () => void; // Alias for onOpenChange for compatibility
 }
 
 export function BulkDeleteDialog({
@@ -24,8 +26,19 @@ export function BulkDeleteDialog({
   onOpenChange,
   onConfirm,
   isDeleting,
-  entityName
+  entityName,
+  isOpen, // Support alternative prop name
+  onClose, // Support alternative prop name
 }: BulkDeleteDialogProps) {
+  // Use either open or isOpen prop
+  const dialogOpen = open !== undefined ? open : isOpen;
+  
+  // Handle onOpenChange or onClose
+  const handleOpenChange = (newOpenState: boolean) => {
+    if (onOpenChange) onOpenChange(newOpenState);
+    if (!newOpenState && onClose) onClose();
+  };
+  
   // Map table names to more user-friendly names
   const getEntityDisplayName = (name: string) => {
     const nameMap: Record<string, string> = {
@@ -42,7 +55,7 @@ export function BulkDeleteDialog({
   };
   
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>

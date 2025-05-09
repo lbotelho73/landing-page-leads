@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ptBR from "@/lib/i18n";
 import { XLSX, jsonToExcel } from "@/lib/xlsx-utils";
-import { asDbTable, asDbView, DatabaseTablesType, DatabaseViewsType } from "@/lib/database-types";
+import { asDbTable, DatabaseTablesType, DatabaseViewsType } from "@/lib/database-types";
 
 interface ExportDataTabProps {
   tables: { id: string; name: string }[];

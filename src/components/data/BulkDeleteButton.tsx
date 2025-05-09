@@ -5,10 +5,10 @@ import { Trash } from "lucide-react";
 import { BulkDeleteDialog } from "./BulkDeleteDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { asDbTable, DatabaseTablesType, DatabaseViewsType } from "@/lib/database-types";
+import { asDbTable, DatabaseTablesType } from "@/lib/database-types";
 
 interface BulkDeleteButtonProps {
-  tableName: string;
+  tableName: DatabaseTablesType | string;
   customFilter?: Record<string, any>;
   onSuccess?: () => void;
 }
@@ -24,7 +24,7 @@ export function BulkDeleteButton({ tableName, customFilter, onSuccess }: BulkDel
       console.log(`Executing bulk delete on table: ${tableName}`);
       
       // Use type assertion to handle dynamic table name
-      let query = supabase.from(asDbTable(tableName)).delete();
+      let query = supabase.from(tableName as DatabaseTablesType).delete();
       
       // Apply custom filter if provided
       if (customFilter) {
@@ -72,7 +72,7 @@ export function BulkDeleteButton({ tableName, customFilter, onSuccess }: BulkDel
         onOpenChange={setShowDialog}
         onConfirm={executeDelete}
         isDeleting={isDeleting}
-        entityName={tableName}
+        entityName={tableName.toString()}
       />
     </>
   );

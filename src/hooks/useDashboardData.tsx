@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateForSupabase } from '@/lib/supabase-utils';
@@ -152,7 +151,8 @@ export function useDashboardData(initialTimeRange: TimeRange = "day", selectedDa
       
       // Calculate total revenue - making sure to properly convert to number
       const totalRevenue = (data || []).reduce((sum, appointment) => {
-        const price = parseFloat(appointment.final_price) || 0;
+        // Fix: Convert to string before parsing to avoid type errors
+        const price = parseFloat(String(appointment.final_price)) || 0;
         return sum + price;
       }, 0);
       

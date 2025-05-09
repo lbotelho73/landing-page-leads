@@ -1,0 +1,65 @@
+
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ptBR } from '@/lib/i18n';
+
+export interface Appointment {
+  id: string;
+  time: string;
+  clientName: string;
+  serviceName: string;
+  masseuseeName: string;
+}
+
+interface AppointmentsScheduleProps {
+  appointments: Appointment[];
+  loading: boolean;
+}
+
+export function AppointmentsSchedule({ appointments, loading }: AppointmentsScheduleProps) {
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>{ptBR.schedule}</CardTitle>
+        <CardDescription>Agenda do período</CardDescription>
+      </CardHeader>
+      <CardContent className="h-[400px]">
+        {loading ? (
+          <div className="text-center py-4">{ptBR.loadingData}</div>
+        ) : (
+          <ScrollArea className="h-full w-full rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{ptBR.time}</TableHead>
+                  <TableHead>{ptBR.client}</TableHead>
+                  <TableHead>{ptBR.services}</TableHead>
+                  <TableHead>{ptBR.professional}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {appointments.length > 0 ? (
+                  appointments.map((appointment) => (
+                    <TableRow key={appointment.id}>
+                      <TableCell>{appointment.time}</TableCell>
+                      <TableCell className="font-medium">{appointment.clientName}</TableCell>
+                      <TableCell>{appointment.serviceName}</TableCell>
+                      <TableCell>{appointment.masseuseeName}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                      Nenhum agendamento para o período selecionado
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

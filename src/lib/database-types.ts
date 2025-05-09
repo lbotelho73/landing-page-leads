@@ -29,20 +29,16 @@ export interface UserProfile {
   created_at?: string;
 }
 
-// Helper functions to cast database tables and views with type safety
-export function asDbTable<T extends DatabaseTablesType>(tableName: DatabaseTablesType): T {
-  return tableName as T;
-}
-
-export function asDbView<T extends DatabaseViewsType>(viewName: DatabaseViewsType): T {
-  return viewName as T;
-}
-
-// String overloads for dynamic tables
-export function asDbTable(tableName: string): DatabaseTablesType {
+// Function overloads for asDbTable - combining generic and string versions
+export function asDbTable<T extends DatabaseTablesType>(tableName: T): T;
+export function asDbTable(tableName: string): DatabaseTablesType;
+export function asDbTable(tableName: string | DatabaseTablesType): DatabaseTablesType {
   return tableName as DatabaseTablesType;
 }
 
-export function asDbView(viewName: string): DatabaseViewsType {
+// Function overloads for asDbView - combining generic and string versions
+export function asDbView<T extends DatabaseViewsType>(viewName: T): T;
+export function asDbView(viewName: string): DatabaseViewsType;
+export function asDbView(viewName: string | DatabaseViewsType): DatabaseViewsType {
   return viewName as DatabaseViewsType;
 }

@@ -5,15 +5,24 @@ import { Trash } from "lucide-react";
 import { BulkDeleteDialog } from "./BulkDeleteDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { asDbTable, DatabaseTablesType } from "@/lib/database-types";
+import { DatabaseTablesType } from "@/lib/database-types";
 
-interface BulkDeleteButtonProps {
+// Define the props interface for the component
+export interface BulkDeleteButtonProps {
   tableName: DatabaseTablesType | string;
   customFilter?: Record<string, any>;
   onSuccess?: () => void;
+  buttonText?: string;
+  buttonVariant?: string;
 }
 
-export function BulkDeleteButton({ tableName, customFilter, onSuccess }: BulkDeleteButtonProps) {
+export function BulkDeleteButton({ 
+  tableName, 
+  customFilter, 
+  onSuccess,
+  buttonText = "Excluir Todos",
+  buttonVariant = "destructive"
+}: BulkDeleteButtonProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
@@ -23,8 +32,11 @@ export function BulkDeleteButton({ tableName, customFilter, onSuccess }: BulkDel
     try {
       console.log(`Executing bulk delete on table: ${tableName}`);
       
-      // Use type assertion to handle dynamic table name
-      let query = supabase.from(tableName as DatabaseTablesType).delete();
+      // Use type casting to handle dynamic table name
+      // This avoids the "excessively deep and possibly infinite" type error
+      let query = supabase
+        .from(tableName as any)
+        .delete();
       
       // Apply custom filter if provided
       if (customFilter) {
@@ -36,11 +48,11 @@ export function BulkDeleteButton({ tableName, customFilter, onSuccess }: BulkDel
         query = query.filter('id', 'neq', null);
       }
       
-      const { error, count } = await query;
+      const { error } = await query;
       
       if (error) throw error;
       
-      console.log(`Deleted records from ${tableName}:`, count);
+      console.log(`Deleted records from ${tableName}`);
       toast.success(`Registros excluídos com sucesso!`);
       
       if (onSuccess) {
@@ -59,12 +71,12 @@ export function BulkDeleteButton({ tableName, customFilter, onSuccess }: BulkDel
   return (
     <>
       <Button
-        variant="destructive"
+        variant={buttonVariant as any}
         size="sm"
         onClick={() => setShowDialog(true)}
       >
         <Trash className="h-4 w-4 mr-2" />
-        Excluir Todos
+        {buttonText}
       </Button>
       
       <BulkDeleteDialog 
@@ -72,7 +84,7 @@ export function BulkDeleteButton({ tableName, customFilter, onSuccess }: BulkDel
         onOpenChange={setShowDialog}
         onConfirm={executeDelete}
         isDeleting={isDeleting}
-        entityName={tableName.toString()}
+        entityName={String(tableName)}
       />
     </>
   );

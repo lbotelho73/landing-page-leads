@@ -54,19 +54,6 @@ export const sanitizeDataForSupabase = (data: any): any => {
     else if (typeof value === 'object' && value !== null) {
       result[key] = sanitizeDataForSupabase(value);
     } 
-    // Handle potential Excel date numbers for date fields
-    else if ((key === 'date' || key.endsWith('_date')) && 
-             (typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value)))) {
-      try {
-        // Import the function directly to avoid circular dependencies
-        const { parseAndFormatDate } = require('@/lib/xlsx-utils');
-        const formattedDate = parseAndFormatDate(value);
-        result[key] = formattedDate || value;
-      } catch (error) {
-        console.error("Error formatting date:", error);
-        result[key] = value;
-      }
-    }
     // Pass through all other values
     else {
       result[key] = value;
@@ -76,21 +63,25 @@ export const sanitizeDataForSupabase = (data: any): any => {
   return result;
 };
 
-// Helper function to handle Excel date conversion for imports
-export const handleExcelDate = (value: any): string | null => {
+// Helper function for handling Excel date conversion
+export const parseAndFormatDate = (value: any): string | null => {
   if (!value) return null;
   
   try {
-    // Import the function directly to avoid circular dependencies
-    const { parseAndFormatDate } = require('@/lib/xlsx-utils');
-    return parseAndFormatDate(value);
+    if (typeof value === 'number') {
+      // Convert Excel date number to JS Date
+      const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+      return formatDateForSupabase(date);
+    } else if (typeof value === 'string') {
+      // Try to parse as date string
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        return formatDateForSupabase(date);
+      }
+    }
+    return String(value);
   } catch (error) {
-    console.error("Error handling Excel date:", error);
+    console.error("Error parsing date:", error);
     return null;
   }
-};
-
-// Type assertion helper for dynamic table names
-export const asTableName = <T extends string>(name: string): T => {
-  return name as T;
 };

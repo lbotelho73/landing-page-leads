@@ -1,7 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { Database } from './database.types';
-import { formatDateForSupabase } from '@/integrations/supabase/client';
+import { formatDateForSupabase } from '@/lib/supabase-utils';
 
 // Get Supabase URL and anon key from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -60,7 +60,7 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
   try {
     // Try to query the table directly first
     const { count, error: countError } = await supabase
-      .from(tableName)
+      .from(tableName as any)
       .select('*', { count: 'exact', head: true });
     
     // If no error occurred, the table exists
@@ -70,7 +70,7 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
     
     // Try using an RPC function if available
     const { data, error: rpcError } = await supabase
-      .rpc('get_table_existence', { table_name: tableName });
+      .rpc('get_table_columns', { table_name: tableName });
     
     if (!rpcError && data !== null) {
       return !!data;
@@ -78,7 +78,7 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
     
     // Final fallback: try to get columns which would fail if table doesn't exist
     const { data: columnsData, error: columnsError } = await supabase
-      .from(tableName)
+      .from(tableName as any)
       .select()
       .limit(1);
     
@@ -107,14 +107,3 @@ export type PaymentMethod = Tables['payment_methods']['Row'];
 export type DailyRevenue = Views['daily_revenue']['Row'];
 export type MarketingPerformance = Views['marketing_performance']['Row'];
 export type ProfessionalEarnings = Views['professional_earnings']['Row'];
-
-// Create a function to check if we have access to the specified function
-export async function checkFunctionAccess(functionName: string): Promise<boolean> {
-  try {
-    const { error } = await supabase.rpc(functionName, { param: 'test' });
-    // If the error is about invalid parameters but not about function not existing
-    return !error || !error.message.includes('does not exist');
-  } catch (error) {
-    return false;
-  }
-}

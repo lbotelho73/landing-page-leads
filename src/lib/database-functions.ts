@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { asDbTable, DatabaseTablesType } from "@/lib/database-types";
+import { DatabaseTablesType } from "@/lib/database-types";
 import { formatDateForSupabase } from "@/lib/supabase-utils";
 
 // Function to get the count of records for a given table and date range
@@ -14,9 +14,9 @@ export async function getCountForPeriod(
     const formattedStartDate = formatDateForSupabase(startDate);
     const formattedEndDate = formatDateForSupabase(endDate);
     
-    // Use the type-safe function to handle the table name
+    // Use type assertion to handle the table name
     const { count, error } = await supabase
-      .from(asDbTable(tableName))
+      .from(tableName as any)
       .select('*', { count: 'exact', head: true })
       .gte(dateColumn, formattedStartDate)
       .lte(dateColumn, formattedEndDate);

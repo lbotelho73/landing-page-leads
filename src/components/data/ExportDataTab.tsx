@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ptBR from "@/lib/i18n";
 import { XLSX, jsonToExcel } from "@/lib/xlsx-utils";
-import { asDbTable, DatabaseTablesType, DatabaseViewsType } from "@/lib/database-types";
 
 interface ExportDataTabProps {
   tables: { id: string; name: string }[];
@@ -24,7 +23,7 @@ export function ExportDataTab({ tables }: ExportDataTabProps) {
     try {
       // Use type assertion to handle dynamic table name
       const { data, error } = await supabase
-        .from(exportTable)
+        .from(exportTable as any)
         .select('*');
       
       if (error) throw error;

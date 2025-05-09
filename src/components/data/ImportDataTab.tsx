@@ -3,8 +3,8 @@ console.log("-------IMPORT DATA TAB FOI CARREGADO-------");
 
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { supabase } from './supabaseClient'; // Ajuste para o caminho do seu supabase client
-import { toast } from 'react-toastify';
+import { supabase } from "@/integrations/supabase/client"; // Ajuste para o caminho do seu supabase client
+//import { toast } from 'react-toastify';
 
 interface TableOption {
   id: string;
@@ -41,7 +41,7 @@ const ImportDataTab: React.FC = () => {
         setTableColumns([]);
       }
     } catch (error: any) {
-      toast.error("Erro ao carregar colunas da tabela: " + (error.message || error));
+      alert("Erro ao carregar colunas da tabela: " + (error.message || error));
       setTableColumns([]);
     }
   };
@@ -72,12 +72,12 @@ const ImportDataTab: React.FC = () => {
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
         if (jsonData.length < 2) {
-          toast.error("O arquivo não contém dados suficientes");
+          alert("O arquivo não contém dados suficientes");
           return;
         }
         const headers = jsonData[0];
         if (!headers || !headers.length) {
-          toast.error("Arquivo sem cabeçalhos.");
+          alert("Arquivo sem cabeçalhos.");
           return;
         }
 
@@ -114,7 +114,7 @@ const ImportDataTab: React.FC = () => {
         setActiveTab('mapping');
       } catch (error) {
         console.error("Erro ao processar arquivo:", error);
-        toast.error("Erro ao processar o arquivo");
+        alert("Erro ao processar o arquivo");
       }
     };
 
@@ -127,10 +127,10 @@ const ImportDataTab: React.FC = () => {
       setLoading(true);
       // Implemente sua lógica de importação para o Supabase!
       // Exemplo: await supabase.from(selectedTable).insert(sheetData);
-      toast.success("Importação concluída (simulação)");
+      alert("Importação concluída (simulação)");
       setLoading(false);
     } catch (error) {
-      toast.error("Erro ao importar dados");
+      alert("Erro ao importar dados");
       setLoading(false);
     }
   };

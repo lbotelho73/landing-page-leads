@@ -32,10 +32,12 @@ export function BulkDeleteButton({
     try {
       console.log(`Executing bulk delete on table: ${tableName}`);
       
-      // Simply cast the tableName as string for Supabase query
-      // This avoids the recursive type resolution
+      // Use as const to tell TypeScript this is a literal type
+      // This prevents the excessive type recursion
+      const tableNameAsConst = tableName as const;
+      
       const deleteQuery = supabase
-        .from(tableName as string)
+        .from(tableNameAsConst)
         .delete();
       
       // Apply custom filter if provided

@@ -183,3 +183,4 @@ const ImportDataTab: React.FC = () => {
 };
 
 export default ImportDataTab;
+export { ImportDataTab };

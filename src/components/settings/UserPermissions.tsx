@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { UserProfile, Permission } from "@/database.types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 type Role = "admin" | "editor" | "viewer";
 
@@ -23,6 +25,7 @@ export function UserPermissions() {
   const [newUserRole, setNewUserRole] = useState<Role>("viewer");
   const [loading, setLoading] = useState(false);
   const [savingPermissions, setSavingPermissions] = useState(false);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   
   // Fetch users and permissions when component mounts
   useEffect(() => {
@@ -33,19 +36,37 @@ export function UserPermissions() {
   const fetchUsers = async () => {
     try {
       console.log("Fetching users...");
-      // First try to get auth users (only admins can access this)
+      
+      // First, try to fetch users from auth.users (requires admin rights)
       try {
-        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-        if (!authError && authData?.users.length) {
-          console.log("Auth users found:", authData.users);
-          // Convert to user_profiles format
-          const authUsers = authData.users.map(user => ({
-            id: user.id,
-            email: user.email || "",
-            role: (user.app_metadata?.role as Role) || "viewer",
-            created_at: user.created_at
-          }));
-          setUsers(authUsers);
+        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+        
+        if (!authError && authUsers) {
+          console.log("Auth users found:", authUsers);
+          
+          // Also get user_profiles for additional info
+          const { data: profiles } = await supabase
+            .from('user_profiles')
+            .select('*');
+            
+          // Create a map of profile data by user ID for quick lookup
+          const profileMap = (profiles || []).reduce((acc, profile) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {} as Record<string, any>);
+          
+          // Combine auth users with their profiles
+          const combinedUsers = authUsers.users.map(user => {
+            const profile = profileMap[user.id] || {};
+            return {
+              id: user.id,
+              email: user.email || "",
+              role: profile.role || (user.app_metadata?.role as Role) || "viewer",
+              created_at: user.created_at
+            };
+          });
+          
+          setUsers(combinedUsers);
           return;
         }
       } catch (authError) {
@@ -105,11 +126,7 @@ export function UserPermissions() {
         viewer: viewerPerms
       });
       
-      console.log("Structured role permissions:", {
-        admin: adminPerms,
-        editor: editorPerms,
-        viewer: viewerPerms
-      });
+      setInitialDataLoaded(true);
       
     } catch (error) {
       console.error("Error fetching permissions:", error);
@@ -422,10 +439,18 @@ export function UserPermissions() {
                 <div key={user.id} className="flex items-center justify-between border-b pb-2">
                   <div>
                     <p className="font-medium">{user.email}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {user.role === 'admin' ? 'Administrador' : 
-                       user.role === 'editor' ? 'Editor' : 'Visualizador'}
-                    </p>
+                    <div className="text-sm flex items-center gap-2">
+                      <Badge 
+                        variant={
+                          user.role === 'admin' ? 'default' : 
+                          user.role === 'editor' ? 'secondary' : 
+                          'outline'
+                        }
+                      >
+                        {user.role === 'admin' ? 'Administrador' : 
+                         user.role === 'editor' ? 'Editor' : 'Visualizador'}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Select 
@@ -462,53 +487,65 @@ export function UserPermissions() {
           <CardDescription>Defina quais permissões cada cargo terá</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className="text-left py-2 px-4">Permissão</th>
-                  <th className="text-center py-2 px-4">Administrador</th>
-                  <th className="text-center py-2 px-4">Editor</th>
-                  <th className="text-center py-2 px-4">Visualizador</th>
-                </tr>
-              </thead>
-              <tbody>
-                {permissions.map((permission) => (
-                  <tr key={permission.id} className="border-t">
-                    <td className="py-2 px-4">
-                      <p className="font-medium">{permission.name}</p>
-                      <p className="text-sm text-muted-foreground">{permission.description}</p>
-                    </td>
-                    <td className="text-center py-2 px-4">
-                      <Checkbox
-                        checked={rolePermissions.admin.includes(permission.id)}
-                        onCheckedChange={() => togglePermission('admin', permission.id)}
-                      />
-                    </td>
-                    <td className="text-center py-2 px-4">
-                      <Checkbox 
-                        checked={rolePermissions.editor.includes(permission.id)}
-                        onCheckedChange={() => togglePermission('editor', permission.id)}
-                      />
-                    </td>
-                    <td className="text-center py-2 px-4">
-                      <Checkbox 
-                        checked={rolePermissions.viewer.includes(permission.id)}
-                        onCheckedChange={() => togglePermission('viewer', permission.id)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Button 
-            onClick={savePermissions} 
-            disabled={savingPermissions}
-            className="bg-massage-500 hover:bg-massage-600"
-          >
-            {savingPermissions ? "Salvando..." : "Salvar Permissões"}
-          </Button>
+          {!initialDataLoaded ? (
+            <div className="flex justify-center py-4">
+              <Alert>
+                <AlertDescription>
+                  Carregando permissões...
+                </AlertDescription>
+              </Alert>
+            </div>
+          ) : (
+            <>
+              <div className="mb-4 overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="text-left py-2 px-4">Permissão</th>
+                      <th className="text-center py-2 px-4">Administrador</th>
+                      <th className="text-center py-2 px-4">Editor</th>
+                      <th className="text-center py-2 px-4">Visualizador</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {permissions.map((permission) => (
+                      <tr key={permission.id} className="border-t">
+                        <td className="py-2 px-4">
+                          <p className="font-medium">{permission.name}</p>
+                          <p className="text-sm text-muted-foreground">{permission.description}</p>
+                        </td>
+                        <td className="text-center py-2 px-4">
+                          <Checkbox
+                            checked={rolePermissions.admin.includes(permission.id)}
+                            onCheckedChange={() => togglePermission('admin', permission.id)}
+                          />
+                        </td>
+                        <td className="text-center py-2 px-4">
+                          <Checkbox 
+                            checked={rolePermissions.editor.includes(permission.id)}
+                            onCheckedChange={() => togglePermission('editor', permission.id)}
+                          />
+                        </td>
+                        <td className="text-center py-2 px-4">
+                          <Checkbox 
+                            checked={rolePermissions.viewer.includes(permission.id)}
+                            onCheckedChange={() => togglePermission('viewer', permission.id)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Button 
+                onClick={savePermissions} 
+                disabled={savingPermissions}
+                className="bg-massage-500 hover:bg-massage-600"
+              >
+                {savingPermissions ? "Salvando..." : "Salvar Permissões"}
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     </>

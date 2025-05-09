@@ -1,280 +1,399 @@
+
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Search } from "lucide-react";
-import { Plus } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlusCircle, Search, Trash } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import ptBR from "@/lib/i18n";
 import { format } from "date-fns";
-import { ptBR as dateFnsPtBR } from "date-fns/locale";
-import { formatCurrency } from "@/lib/format";
-import { appointmentStatusMap } from "@/components/appointments/AppointmentStatusBadge";
+import { ptBR } from "date-fns/locale";
+import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
 import { AppointmentForm } from "@/components/appointments/AppointmentForm";
+import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
 import { AppointmentStatusSelect } from "@/components/appointments/AppointmentStatusSelect";
-import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BulkDeleteButton } from "@/components/data/BulkDeleteButton";
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [filteredAppointments, setFilteredAppointments] = useState<any[]>([]);
-  const [dateRange, setDateRange] = useState<{
-    from: Date;
-    to?: Date;
-  }>({
-    from: new Date(),
-    to: undefined,
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange>({ 
+    from: new Date(), 
+    to: undefined 
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
-  // Fetch appointments on component mount and when date range changes
+  // Selection state for bulk actions
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+  
+  // Load appointments on initial render
   useEffect(() => {
     fetchAppointments();
-  }, [dateRange]);
+  }, []);
   
-  // Apply filters when data changes
+  // Filter appointments when filters change
   useEffect(() => {
     applyFilters();
-  }, [searchTerm, appointments, statusFilter]);
+  }, [appointments, searchTerm, statusFilter, dateRange]);
   
-  const applyFilters = () => {
-    let filtered = [...appointments];
-    
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((appointment) => {
-        if (statusFilter === "completed") return appointment.is_completed;
-        if (statusFilter === "canceled") return appointment.cancellation_reason;
-        // Default is scheduled (not completed, not canceled)
-        return !appointment.is_completed && !appointment.cancellation_reason;
-      });
+  // Handle select all checkbox
+  useEffect(() => {
+    if (selectAll) {
+      setSelectedItems(filteredAppointments.map((appointment) => appointment.id));
+    } else if (selectedItems.length === filteredAppointments.length && filteredAppointments.length > 0) {
+      setSelectAll(true);
     }
-    
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter((appointment) =>
-        appointment.customer?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.customer?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.service?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.professionals?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.professionals?.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    setFilteredAppointments(filtered);
-  };
+  }, [selectAll, filteredAppointments]);
   
   const fetchAppointments = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      
-      // Format the date range for Supabase query
-      const fromDate = format(dateRange.from, "yyyy-MM-dd");
-      const toDate = dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : fromDate;
-      
       const { data, error } = await supabase
-        .from('appointments')
+        .from("appointments")
         .select(`
           *,
-          customer:customer_id(*),
-          service:service_id(*),
-          professionals:primary_professional_id(*),
-          payment_method:payment_method_id(*)
+          customers:customer_id (*),
+          services:service_id (*),
+          primary_professionals:primary_professional_id (*, alias_name),
+          secondary_professionals:secondary_professional_id (*, alias_name),
+          payment_methods:payment_method_id (*)
         `)
-        .gte('date', fromDate)
-        .lte('date', toDate)
-        .order('date')
-        .order('time');
+        .order("date", { ascending: false })
+        .order("time", { ascending: true });
       
       if (error) throw error;
       
-      // Fix the date to display correctly in the UI
-      const appointmentsWithFixedDates = data?.map(appointment => {
-        const dateObj = new Date(appointment.date);
-        dateObj.setDate(dateObj.getDate() + 1); // Add one day to fix date display
-        return {
-          ...appointment,
-          displayDate: dateObj
-        };
-      }) || [];
-      
-      console.log("Fetched appointments:", appointmentsWithFixedDates);
-      setAppointments(appointmentsWithFixedDates);
-    } catch (error: any) {
+      setAppointments(data || []);
+    } catch (error) {
       console.error("Error fetching appointments:", error);
-      toast.error(`Erro ao carregar agendamentos: ${error.message}`);
+      toast.error("Erro ao carregar agendamentos");
     } finally {
       setIsLoading(false);
     }
   };
   
-  const handleEditClick = (appointment: any) => {
-    setSelectedAppointment(appointment);
-    setShowForm(true);
+  const applyFilters = () => {
+    let filtered = [...appointments];
+    
+    // Apply search filter (customer name)
+    if (searchTerm) {
+      filtered = filtered.filter(appointment => {
+        const customerName = `${appointment.customers?.first_name || ""} ${appointment.customers?.last_name || ""}`.toLowerCase();
+        return customerName.includes(searchTerm.toLowerCase());
+      });
+    }
+    
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(appointment => {
+        if (statusFilter === "completed") return appointment.is_completed;
+        if (statusFilter === "pending") return !appointment.is_completed && !appointment.cancellation_reason;
+        if (statusFilter === "cancelled") return !!appointment.cancellation_reason;
+        return true;
+      });
+    }
+    
+    // Apply date range filter
+    if (dateRange.from) {
+      const fromDate = new Date(dateRange.from);
+      fromDate.setHours(0, 0, 0, 0);
+      
+      filtered = filtered.filter(appointment => {
+        const appointmentDate = new Date(appointment.date);
+        
+        if (dateRange.to) {
+          const toDate = new Date(dateRange.to);
+          toDate.setHours(23, 59, 59, 999);
+          return appointmentDate >= fromDate && appointmentDate <= toDate;
+        }
+        
+        return appointmentDate.getTime() === fromDate.getTime();
+      });
+    }
+    
+    setFilteredAppointments(filtered);
   };
   
-  const handleFormClose = () => {
-    setShowForm(false);
+  const handleAppointmentAdded = (newAppointment: any) => {
+    setAppointments(prev => [newAppointment, ...prev]);
+    setShowAddDialog(false);
+    toast.success("Agendamento adicionado com sucesso!");
+  };
+  
+  const handleAppointmentUpdated = (updatedAppointment: any) => {
+    setAppointments(prev => 
+      prev.map(appointment => 
+        appointment.id === updatedAppointment.id ? updatedAppointment : appointment
+      )
+    );
     setSelectedAppointment(null);
+    setShowAddDialog(false);
+    toast.success("Agendamento atualizado com sucesso!");
   };
   
-  const handleFormSubmit = () => {
-    fetchAppointments();
-    handleFormClose();
+  const editAppointment = (appointment: any) => {
+    setSelectedAppointment(appointment);
+    setShowAddDialog(true);
+  };
+  
+  const formatDateTime = (date: string, time: string) => {
+    if (!date) return "Data não definida";
+    
+    try {
+      const formattedDate = format(new Date(date), "PPP", { locale: ptBR });
+      return `${formattedDate} às ${time || ""}`;
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Data inválida";
+    }
+  };
+  
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+  
+  const handleToggleSelectItem = (id: string) => {
+    setSelectedItems(prev => {
+      const isSelected = prev.includes(id);
+      
+      // If item is being deselected, ensure selectAll is false
+      if (isSelected) {
+        setSelectAll(false);
+        return prev.filter(itemId => itemId !== id);
+      } else {
+        // Check if this selection means all items are now selected
+        const newSelections = [...prev, id];
+        if (newSelections.length === filteredAppointments.length) {
+          setSelectAll(true);
+        }
+        return newSelections;
+      }
+    });
+  };
+  
+  const handleToggleSelectAll = (checked: boolean) => {
+    setSelectAll(checked);
+    setSelectedItems(checked ? filteredAppointments.map(appointment => appointment.id) : []);
+  };
+  
+  const handleDeleteSelected = async () => {
+    if (selectedItems.length === 0) return;
+    
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .delete()
+        .in("id", selectedItems);
+      
+      if (error) throw error;
+      
+      fetchAppointments();
+      setSelectedItems([]);
+      setSelectAll(false);
+      toast.success(`${selectedItems.length} agendamentos excluídos com sucesso!`);
+    } catch (error) {
+      console.error("Error deleting appointments:", error);
+      toast.error("Erro ao excluir agendamentos");
+    }
   };
   
   return (
     <AppLayout>
       <div className="page-container">
-        <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">{ptBR.appointments}</h1>
-          
-          <div className="flex flex-wrap gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar agendamentos..."
-                className="w-full pl-8 md:w-[250px]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Agendamentos</h1>
+          <Button 
+            className="bg-massage-500 hover:bg-massage-600"
+            onClick={() => {
+              setSelectedAppointment(null);
+              setShowAddDialog(true);
+            }}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Novo Agendamento
+          </Button>
+        </div>
+        
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle>Filtros</CardTitle>
+            <CardDescription>
+              Filtre os agendamentos por data, status ou cliente
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar cliente..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <AppointmentStatusSelect
+                value={statusFilter}
+                onChange={setStatusFilter}
+              />
+              
+              <DateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
               />
             </div>
-            
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Agendamento
-            </Button>
-
-            {/* Botão de exclusão em massa */}
-            <BulkDeleteButton 
-              tableType="appointments"
-              buttonText="Excluir Selecionados"
-              onDeleteComplete={fetchAppointments}
-              items={filteredAppointments}
-              displayFields={["customer.first_name", "service.name", "date"]}
-              displayLabels={["Cliente", "Serviço", "Data"]}
+          </CardContent>
+        </Card>
+        
+        <div className="flex justify-between items-center mb-4">
+          <div className="text-sm text-muted-foreground">
+            {filteredAppointments.length} agendamentos encontrados
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedItems.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash className="mr-1 h-4 w-4" />
+                Excluir ({selectedItems.length})
+              </Button>
+            )}
+            <BulkDeleteButton
+              tableName="appointments"
+              onSuccess={fetchAppointments}
             />
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-4 mb-6">
-          <AppointmentStatusSelect 
-            value={statusFilter} 
-            onValueChange={setStatusFilter}
-            includeAll
-          />
-          
-          <DatePickerWithRange
-            value={dateRange}
-            onChange={setDateRange}
-          />
-        </div>
-        
-        {showForm && (
-          <AppointmentForm
-            appointment={selectedAppointment}
-            onClose={handleFormClose}
-            onSubmit={handleFormSubmit}
-          />
+        {isLoading ? (
+          <div className="text-center py-8">Carregando agendamentos...</div>
+        ) : (
+          <div className="border rounded-md overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox 
+                      checked={selectAll}
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Serviço</TableHead>
+                  <TableHead>Profissional</TableHead>
+                  <TableHead>Data e Hora</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAppointments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center">
+                      Nenhum agendamento encontrado
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredAppointments.map((appointment) => (
+                    <TableRow key={appointment.id}>
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedItems.includes(appointment.id)}
+                          onCheckedChange={() => handleToggleSelectItem(appointment.id)}
+                          aria-label={`Selecionar agendamento de ${appointment.customers?.first_name || ''}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <AppointmentStatusBadge 
+                          isCompleted={appointment.is_completed}
+                          isCancelled={!!appointment.cancellation_reason}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {appointment.customers?.first_name} {appointment.customers?.last_name}
+                      </TableCell>
+                      <TableCell>{appointment.services?.name}</TableCell>
+                      <TableCell>
+                        {appointment.primary_professionals?.alias_name || 
+                         `${appointment.primary_professionals?.first_name || ''} ${appointment.primary_professionals?.last_name || ''}`}
+                      </TableCell>
+                      <TableCell>{formatDateTime(appointment.date, appointment.time)}</TableCell>
+                      <TableCell>{formatCurrency(appointment.final_price)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          onClick={() => editAppointment(appointment)}
+                        >
+                          Editar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         )}
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Agendamentos</CardTitle>
-            <CardDescription>
-              Gerencie os agendamentos do seu negócio.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <p>Carregando agendamentos...</p>
-              </div>
-            ) : filteredAppointments.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Nenhum agendamento encontrado.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">Data e Hora</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Serviço</TableHead>
-                      <TableHead>Profissional</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAppointments.map((appointment) => {
-                      const status = appointment.cancellation_reason
-                        ? "canceled"
-                        : appointment.is_completed
-                        ? "completed"
-                        : "scheduled";
-                        
-                      return (
-                        <TableRow key={appointment.id}>
-                          <TableCell className="whitespace-nowrap">
-                            <div className="flex items-start gap-2">
-                              <CalendarIcon className="h-4 w-4 mt-0.5" />
-                              <div>
-                                <div>
-                                  {format(new Date(appointment.displayDate), "dd/MM/yyyy", {
-                                    locale: dateFnsPtBR,
-                                  })}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {appointment.time.substring(0, 5)}
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {appointment.customer ? `${appointment.customer.first_name} ${appointment.customer.last_name}` : "-"}
-                          </TableCell>
-                          <TableCell>{appointment.service?.name || "-"}</TableCell>
-                          <TableCell>
-                            {appointment.professionals ? `${appointment.professionals.first_name} ${appointment.professionals.last_name}` : "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={appointmentStatusMap[status].variant}>
-                              {appointmentStatusMap[status].label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(appointment.final_price)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleEditClick(appointment)}
-                            >
-                              Editar
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {selectedAppointment ? "Editar Agendamento" : "Novo Agendamento"}
+              </DialogTitle>
+            </DialogHeader>
+            <AppointmentForm
+              appointment={selectedAppointment}
+              onAppointmentAdded={handleAppointmentAdded}
+              onAppointmentUpdated={handleAppointmentUpdated}
+            />
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar exclusão</DialogTitle>
+            </DialogHeader>
+            <p>
+              Tem certeza que deseja excluir {selectedItems.length} agendamentos?
+              Esta ação não poderá ser desfeita.
+            </p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  handleDeleteSelected();
+                  setShowDeleteConfirm(false);
+                }}
+              >
+                Excluir
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

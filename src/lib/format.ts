@@ -1,94 +1,65 @@
 
-export const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
-};
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-export const formatDate = (date: Date | string): string => {
-  if (!date) return '';
-  
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(dateObj);
-};
-
-export const formatTime = (time: string): string => {
-  if (!time) return '';
-  
-  // Assuming time is in format "HH:MM" or "HH:MM:SS"
-  const [hours, minutes] = time.split(':');
-  return `${hours}:${minutes}`;
-};
-
-export const formatDateForDisplay = (date: Date | string): string => {
-  if (!date) return '';
-  
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  }).format(dateObj);
-};
-
-export const formatDateTimeForDisplay = (date: Date | string): string => {
-  if (!date) return '';
-  
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(dateObj);
-};
-
-export const formatDuration = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  
-  if (hours > 0 && mins > 0) {
-    return `${hours}h ${mins}min`;
-  } else if (hours > 0) {
-    return `${hours}h`;
-  } else {
-    return `${mins}min`;
+/**
+ * Format a date to display in a human-readable format (dd/mm/yyyy)
+ */
+export const formatDate = (date: string | Date | null | undefined): string => {
+  if (!date) return "";
+  try {
+    return format(new Date(date), "dd/MM/yyyy", { locale: ptBR });
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return String(date);
   }
 };
 
-// Helper function to get current year
-export const getCurrentYear = (): number => {
-  return new Date().getFullYear(); // Returns 2025 in the app's context
+/**
+ * Format a time string to display in a human-readable format (HH:MM)
+ */
+export const formatTimeDisplay = (time: string | null | undefined): string => {
+  if (!time) return "";
+  return time;
 };
 
-// Helper function to determine if a date is in the current year
-export const isCurrentYear = (date: Date | string): boolean => {
-  if (!date) return false;
+/**
+ * Format a number as currency (BRL)
+ */
+export const formatCurrency = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return "";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+};
+
+/**
+ * Format a percentage value
+ */
+export const formatPercentage = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return "";
+  return `${value}%`;
+};
+
+/**
+ * Format a phone number to Brazilian format
+ */
+export const formatPhone = (phone: string | null | undefined): string => {
+  if (!phone) return "";
   
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.getFullYear() === getCurrentYear();
-};
-
-// Function to get the start and end dates for a "This Year" filter
-export const getThisYearRange = (): { start: Date; end: Date } => {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const start = new Date(currentYear, 0, 1); // January 1st of current year
-  const end = new Date(currentYear, 11, 31, 23, 59, 59); // December 31st of current year, end of day
+  // Remove all non-numeric characters
+  const cleanNumber = phone.replace(/\D/g, "");
   
-  return { start, end };
-};
-
-// Format time for display (e.g., "60" -> "1h", "90" -> "1h 30min")
-export const formatTimeDisplay = (minutes: number): string => {
-  return formatDuration(minutes);
+  // Format based on length
+  if (cleanNumber.length === 11) {
+    // Mobile: (xx) x xxxx-xxxx
+    return `(${cleanNumber.substring(0, 2)}) ${cleanNumber.substring(2, 3)} ${cleanNumber.substring(3, 7)}-${cleanNumber.substring(7, 11)}`;
+  } else if (cleanNumber.length === 10) {
+    // Landline: (xx) xxxx-xxxx
+    return `(${cleanNumber.substring(0, 2)}) ${cleanNumber.substring(2, 6)}-${cleanNumber.substring(6, 10)}`;
+  }
+  
+  // Return as is if not matching expected patterns
+  return phone;
 };

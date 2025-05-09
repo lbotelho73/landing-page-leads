@@ -1,64 +1,76 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash } from "lucide-react";
 import { BulkDeleteDialog } from "./BulkDeleteDialog";
-import { DatabaseTablesType } from "@/database.types";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BulkDeleteButtonProps {
-  tableType: DatabaseTablesType | "marketing_channels"; // Allow "marketing_channels" explicitly
-  buttonVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  buttonText?: string;
-  onDeleteComplete: () => void;
-  idField?: string;
-  displayFields: string[];
-  displayLabels: string[];
-  items: any[];
+  tableName: string;
+  customFilter?: Record<string, any>;
+  onSuccess?: () => void;
 }
 
-export function BulkDeleteButton({
-  tableType,
-  buttonVariant = "destructive",
-  buttonText,
-  onDeleteComplete,
-  items,
-  idField = "id",
-  displayFields,
-  displayLabels
-}: BulkDeleteButtonProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const getDefaultText = () => {
-    switch(tableType) {
-      case "customers": return "Excluir Clientes";
-      case "professionals": return "Excluir Profissionais";
-      case "services": return "Excluir Serviços";
-      case "appointments": return "Excluir Agendamentos";
-      case "marketing_channels": return "Excluir Canais";
-      default: return "Excluir Itens";
+export function BulkDeleteButton({ tableName, customFilter, onSuccess }: BulkDeleteButtonProps) {
+  const [showDialog, setShowDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const executeDelete = async () => {
+    setIsDeleting(true);
+    
+    try {
+      console.log(`Executing bulk delete on table: ${tableName}`);
+      
+      let query = supabase.from(tableName).delete();
+      
+      // Apply custom filter if provided
+      if (customFilter) {
+        Object.entries(customFilter).forEach(([column, value]) => {
+          query = query.eq(column, value);
+        });
+      } else {
+        // If no filter provided, confirm with Supabase that we want to delete all
+        query = query.filter('id', 'neq', null);
+      }
+      
+      const { error, count } = await query;
+      
+      if (error) throw error;
+      
+      console.log(`Deleted records from ${tableName}:`, count);
+      toast.success(`Registros excluídos com sucesso!`);
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      setShowDialog(false);
+    } catch (error: any) {
+      console.error("Error during bulk delete:", error);
+      toast.error(`Erro ao excluir registros: ${error.message || 'Erro desconhecido'}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
-
+  
   return (
     <>
-      <Button 
-        variant={buttonVariant} 
-        onClick={() => setIsDialogOpen(true)}
-        disabled={items.length === 0}
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => setShowDialog(true)}
       >
-        <Trash2 className="h-4 w-4 mr-2" />
-        {buttonText || getDefaultText()}
+        <Trash className="h-4 w-4 mr-2" />
+        Excluir Todos
       </Button>
       
-      <BulkDeleteDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        tableType={tableType as any}
-        items={items}
-        onDeleteComplete={onDeleteComplete}
-        idField={idField}
-        displayFields={displayFields}
-        displayLabels={displayLabels}
+      <BulkDeleteDialog 
+        open={showDialog}
+        onOpenChange={setShowDialog}
+        onConfirm={executeDelete}
+        isDeleting={isDeleting}
+        entityName={tableName}
       />
     </>
   );

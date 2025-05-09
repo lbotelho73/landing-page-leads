@@ -27,12 +27,9 @@ interface ImportDataTabProps {
 // Helper function to convert Excel dates
 const excelDateToJsDate = (excelDate: number) => {
   const millisecondsPerDay = 24 * 60 * 60 * 1000;
-  // Excel's epoch starts on January 1, 1900
   const excelEpoch = new Date(1900, 0, 1);
-  // Excel leap year bug: Excel thinks 1900 was a leap year, so we need to adjust dates after February 28, 1900
   const daysAdjustedForExcelBug = excelDate > 60 ? excelDate - 1 : excelDate;
-  const utcDays = daysAdjustedForExcelBug - 1; // Adjust because Excel's epoch starts at day 1, not day 0
-  
+  const utcDays = daysAdjustedForExcelBug - 1;
   const jsDate = new Date(excelEpoch.getTime() + utcDays * millisecondsPerDay);
   return jsDate;
 };
@@ -58,7 +55,6 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   
-  // Reset state when selected table changes
   useEffect(() => {
     if (selectedTable) {
       fetchTableColumns(selectedTable);
@@ -71,25 +67,16 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
     }
   }, [selectedTable]);
   
-  // Fetch available columns for selected table
   const fetchTableColumns = async (tableName: string) => {
     try {
-      const { data, error } = await supabase.rpc('get_table_columns', { 
-        table_name: tableName 
-      });
-      
+      const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
       if (error) throw error;
-      
-      console.log(`Available columns for ${tableName}:`, data);
       setTableColumns(data || []);
-      
     } catch (error) {
-      console.error("Error fetching table columns:", error);
       toast.error("Erro ao carregar colunas da tabela");
     }
   };
   
-  // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     setFile(selectedFile || null);
@@ -100,33 +87,23 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
       return;
     }
     
-    // Read file data
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
         if (!data) throw new Error("Falha ao ler arquivo");
-        
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        
-        // Convert to JSON with header option
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
         if (jsonData.length < 2) {
           toast.error("O arquivo não contém dados suficientes");
           return;
         }
-        
-        // Extract headers (first row)
         const headers = jsonData[0] as string[];
-        
-        // Process data rows (remaining rows)
         const dataRows = jsonData.slice(1).map((row: any) => {
           const obj: Record<string, any> = {};
           headers.forEach((header, index) => {
-            // Ensure header is a string
             const headerStr = String(header).trim();
             if (headerStr) {
               obj[headerStr] = row[index];
@@ -134,45 +111,33 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
           });
           return obj;
         });
-        
-        console.log("Parsed data:", dataRows);
         setSheetData(dataRows);
-        
-        // Set preview data (first 5 rows)
         setPreviewData(dataRows.slice(0, 5));
-        
-        // If a table is already selected, create initial mappings
+
+        // -- AQUI ESTÁ O AJUSTE CRÍTICO: headers -> dbColumn!!
         if (selectedTable && tableColumns.length > 0) {
           const initialMapping: Record<string, string> = {};
-          
-          // For each available column in the DB table
-          tableColumns.forEach((dbColumn: string) => {
-            // Try to find matching column in sheet
-            const matchingSheetColumn = headers.find(
-              sheetCol => String(sheetCol).toLowerCase() === dbColumn.toLowerCase()
+          headers.forEach((sheetCol) => {
+            // Tenta achar coluna correspondente na tabela
+            const matchingDbColumn = tableColumns.find(
+              dbCol => dbCol.toLowerCase() === String(sheetCol).toLowerCase()
             );
-            
-            if (matchingSheetColumn) {
-              initialMapping[dbColumn] = String(matchingSheetColumn);
+            if (matchingDbColumn) {
+              // Chave = header do CSV, valor = coluna do banco
+              initialMapping[String(sheetCol)] = matchingDbColumn;
             }
           });
-          
           setMappings(initialMapping);
         }
-        
-        // Move to mapping tab
         setActiveTab("mapping");
-        
       } catch (error) {
-        console.error("Error parsing file:", error);
         toast.error("Erro ao processar o arquivo");
       }
     };
-    
     reader.readAsArrayBuffer(selectedFile);
   };
   
-  // Handle column mapping changes
+  // Mantém o padrão: chave é o campo do CSV, valor é a coluna do banco
   const handleMappingChange = (csvField: string, dbField: string) => {
     setMappings(prev => ({
       ...prev,
@@ -180,51 +145,33 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
     }));
   };
   
-  // Import data
   const handleImport = async () => {
     if (!sheetData || !selectedTable || Object.keys(mappings).length === 0) {
       toast.error("Configuração de importação incompleta");
       return;
     }
-    
     setIsLoading(true);
     setErrorMessages([]);
-    
     try {
-      console.log("Starting import for table:", selectedTable);
-      console.log("Column mappings:", mappings);
-      
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
-      
-      // Process data in batches of 50
       const batchSize = 50;
       const batches = [];
-      
       for (let i = 0; i < sheetData.length; i += batchSize) {
         batches.push(sheetData.slice(i, i + batchSize));
       }
-      
-      // Process each batch
       for (const batch of batches) {
         const recordsToInsert = batch.map((row) => {
           const record: Record<string, any> = {};
-          
-          // Map column values according to the mapping
-          Object.keys(mappings).forEach(csvField => {
-            const dbField = mappings[csvField];
+          // NOVO: percorre mappings csv->db
+          Object.entries(mappings).forEach(([csvField, dbField]) => {
             if (dbField) {
-              // Handle date format conversions for columns with 'date' in name
               if (dbField.includes('date') && row[csvField] !== undefined) {
-                // Check if it's an Excel date number
                 if (typeof row[csvField] === 'number') {
                   const jsDate = excelDateToJsDate(row[csvField]);
                   record[dbField] = formatDateYYYYMMDD(jsDate);
-                } 
-                // Check if it's a date string in various formats
-                else if (typeof row[csvField] === 'string') {
-                  // Try to parse as date
+                } else if (typeof row[csvField] === 'string') {
                   const parsedDate = new Date(row[csvField]);
                   if (!isNaN(parsedDate.getTime())) {
                     record[dbField] = formatDateYYYYMMDD(parsedDate);
@@ -237,49 +184,35 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
               }
             }
           });
-          
           return record;
         });
-        
-        // Sanitize data for Supabase
-        const sanitizedRecords = sanitizeDataForSupabase ? 
-          sanitizeDataForSupabase(recordsToInsert) : 
-          recordsToInsert;
-        
-        // Insert batch into database using type assertion for table name
+        const sanitizedRecords = sanitizeDataForSupabase
+          ? sanitizeDataForSupabase(recordsToInsert)
+          : recordsToInsert;
         const { error } = await supabase
           .from(asDbTable(selectedTable))
           .insert(sanitizedRecords);
-          
         if (error) {
-          console.error(`Error inserting batch:`, error);
           errorCount += recordsToInsert.length;
           errors.push(`Erro ao inserir lote: ${error.message}`);
         } else {
           successCount += recordsToInsert.length;
         }
       }
-      
       setImportStats({
         total: sheetData.length,
         success: successCount,
         errors: errorCount
       });
-      
       setImportSuccess(errorCount === 0);
       setErrorMessages(errors);
-      
       if (errorCount === 0) {
         toast.success(`Importação concluída com sucesso! ${successCount} registros importados.`);
       } else {
         toast.warning(`Importação concluída com alertas. ${successCount} registros importados, ${errorCount} falhas.`);
       }
-      
-      // Move to review tab
       setActiveTab("review");
-      
     } catch (error: any) {
-      console.error("Import error:", error);
       setImportSuccess(false);
       setErrorMessages([`Erro na importação: ${error.message || 'Erro desconhecido'}`]);
       toast.error("Erro ao importar dados");
@@ -299,7 +232,6 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
     setActiveTab("upload");
   };
   
-  // Determine if there are any available table options
   const hasTableOptions = tables && tables.length > 0;
   
   return (
@@ -324,7 +256,6 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
         ) : (
           <>
             {!selectedTable ? (
-              // Step 1: Select table
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Selecione o tipo de dados para importar:</h3>
                 <RadioGroup 
@@ -347,7 +278,6 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
                 </RadioGroup>
               </div>
             ) : (
-              // Step 2+: Import workflow
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                 <TabsList className="grid grid-cols-3 mb-4">
                   <TabsTrigger value="upload" disabled={isLoading}>
@@ -532,10 +462,8 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
           </>
         )}
         
-        {/* Google Authentication Guide */}
         <GoogleAuthGuide />
         
-        {/* Delete Options */}
         {selectedTable && (
           <div className="mt-8 pt-6 border-t">
             <div className="flex justify-between items-center">

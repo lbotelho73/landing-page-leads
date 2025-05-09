@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Select,
@@ -36,40 +35,27 @@ export function FieldMappingSection({
   const [loading, setLoading] = useState(false);
   const [availableColumns, setAvailableColumns] = useState<string[]>(tableColumns);
   
-  // Fetch columns for selected table
   useEffect(() => {
     const fetchTableColumns = async () => {
       if (!selectedTable) {
         setAvailableColumns([]);
         return;
       }
-      
       setLoading(true);
       try {
-        const { data, error } = await supabase.rpc('get_table_columns', { 
-          table_name: selectedTable 
-        });
-        
+        const { data, error } = await supabase.rpc('get_table_columns', { table_name: selectedTable });
         if (error) {
-          console.error("Error fetching table columns:", error);
           return;
         }
-        
         if (data && Array.isArray(data)) {
           setAvailableColumns(data);
         }
-      } catch (err) {
-        console.error("Failed to fetch table columns:", err);
-      } finally {
-        setLoading(false);
-      }
+      } catch { } finally { setLoading(false); }
     };
-    
     fetchTableColumns();
   }, [selectedTable]);
   
   useEffect(() => {
-    // Filter CSV headers based on search term
     if (searchTerm) {
       const filtered = csvHeaders.filter(header => 
         header.toLowerCase().includes(searchTerm.toLowerCase())
@@ -81,36 +67,24 @@ export function FieldMappingSection({
   }, [searchTerm, csvHeaders]);
   
   const guessMatchingColumn = (csvHeader: string): string => {
-    // Simple logic to guess matching column
     const normalized = csvHeader.toLowerCase().replace(/[_\s]/g, '');
-    
-    // Try exact match first
     let match = availableColumns.find(
       col => col.toLowerCase() === csvHeader.toLowerCase()
     );
-    
     if (match) return match;
-    
-    // Try to match without spaces and underscores
     match = availableColumns.find(
       col => col.toLowerCase().replace(/[_\s]/g, '') === normalized
     );
-    
     if (match) return match;
-    
-    // Try partial match
     match = availableColumns.find(
       col => col.toLowerCase().includes(normalized) || normalized.includes(col.toLowerCase())
     );
-    
     return match || "";
   };
   
-  // Auto-map fields that look similar
   useEffect(() => {
     if (csvHeaders.length > 0 && availableColumns.length > 0) {
       const initialMappings: Record<string, string> = {};
-      
       csvHeaders.forEach(header => {
         const guess = guessMatchingColumn(header);
         if (guess) {

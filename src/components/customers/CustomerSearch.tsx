@@ -16,12 +16,27 @@ interface CustomerSearchProps {
   onSelect?: (customer: Customer) => void;
 }
 
-export function CustomerSearch({ onSelectCustomer, onCreateNew, value, onSelect }: CustomerSearchProps) {
+export function CustomerSearch({ 
+  onSelectCustomer, 
+  onCreateNew, 
+  value, 
+  onSelect 
+}: CustomerSearchProps) {
   const [searchType, setSearchType] = useState<"whatsapp" | "name">("whatsapp");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<Customer[]>([]);
   const [showResults, setShowResults] = useState(false);
+  
+  // Add default implementations for the required props if not provided
+  const handleSelectCustomer = (customer: Customer) => {
+    if (onSelect) onSelect(customer);
+    if (onSelectCustomer) onSelectCustomer(customer);
+  };
+  
+  const handleCreateNew = () => {
+    if (onCreateNew) onCreateNew();
+  };
   
   useEffect(() => {
     // Limpamos os resultados quando o termo de pesquisa muda
@@ -73,22 +88,6 @@ export function CustomerSearch({ onSelectCustomer, onCreateNew, value, onSelect 
     if (e.key === "Enter") {
       handleSearch();
     }
-  };
-  
-  const handleSelectCustomer = (customer: Customer) => {
-    // Call both handlers for compatibility
-    if (onSelect) onSelect(customer);
-    onSelectCustomer(customer);
-    setSearchTerm("");
-    setResults([]);
-    setShowResults(false);
-  };
-  
-  const handleCreateNew = () => {
-    onCreateNew();
-    setSearchTerm("");
-    setResults([]);
-    setShowResults(false);
   };
   
   return (

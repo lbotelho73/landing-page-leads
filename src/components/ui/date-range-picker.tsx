@@ -19,6 +19,8 @@ export interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (date: DateRange | undefined) => void;
   onValueChange?: (date: DateRange | undefined) => void;
+  date?: DateRange;
+  onDateChange?: (date: DateRange | undefined) => void;
   className?: string;
   from?: Date;
   to?: Date;
@@ -28,6 +30,8 @@ export function DateRangePicker({
   value,
   onChange,
   onValueChange,
+  date,
+  onDateChange,
   className,
   from,
   to,
@@ -35,16 +39,18 @@ export function DateRangePicker({
   // Convert from/to props to value if provided
   const dateRange = React.useMemo(() => {
     if (value) return value;
+    if (date) return date;
     if (from || to) {
       return { from: from, to: to };
     }
     return undefined;
-  }, [value, from, to]);
+  }, [value, date, from, to]);
 
-  const handleDateChange = (date: DateRange | undefined) => {
-    // Call both handlers to support both naming conventions
-    if (onChange) onChange(date);
-    if (onValueChange) onValueChange(date);
+  const handleDateChange = (updatedDate: DateRange | undefined) => {
+    // Call all handlers to support different naming conventions
+    if (onChange) onChange(updatedDate);
+    if (onValueChange) onValueChange(updatedDate);
+    if (onDateChange) onDateChange(updatedDate);
   };
 
   return (

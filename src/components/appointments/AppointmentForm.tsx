@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -321,6 +320,10 @@ export function AppointmentForm({
                   <CustomerSearch 
                     value={customer}
                     onSelect={handleCustomerSelect}
+                    onSelectCustomer={handleCustomerSelect}
+                    onCreateNew={() => {
+                      toast.info("Funcionalidade de criação de cliente não está disponível");
+                    }}
                   />
                 </div>
                 

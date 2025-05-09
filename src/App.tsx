@@ -1,4 +1,5 @@
 
+import React from "react"; // Ensure React is imported
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -112,36 +113,38 @@ const App = () => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <Toaster />
-          <Sonner />
-          
-          {showGoogleGuide && (
-            <div className="fixed top-4 right-4 z-50 w-full max-w-md">
-              <GoogleAuthGuide />
-            </div>
-          )}
-          
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/professionals" element={<ProfessionalsPage />} />
-            <Route path="/services" element={<ServicesPage />} />
-            <Route path="/customers" element={<CustomersPage />} />
-            <Route path="/appointments" element={<AppointmentsPage />} />
-            <Route path="/payments" element={<PaymentsPage />} />
-            <Route path="/marketing" element={<MarketingPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/data" element={<DataPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            
+            {showGoogleGuide && (
+              <div className="fixed top-4 right-4 z-50 w-full max-w-md">
+                <GoogleAuthGuide />
+              </div>
+            )}
+            
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/professionals" element={<ProfessionalsPage />} />
+              <Route path="/services" element={<ServicesPage />} />
+              <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/appointments" element={<AppointmentsPage />} />
+              <Route path="/payments" element={<PaymentsPage />} />
+              <Route path="/marketing" element={<MarketingPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/data" element={<DataPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </TooltipProvider>
         </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </React.StrictMode>
   );
 };
 

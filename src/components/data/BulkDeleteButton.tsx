@@ -32,9 +32,8 @@ export function BulkDeleteButton({
     try {
       console.log(`Executing bulk delete on table: ${tableName}`);
       
-      // Create a query builder directly with the tableName
-      // This avoids deep type instantiation issue
-      let query = supabase.from(tableName);
+      // Use string literal type to avoid excessive type instantiation
+      const query = supabase.from(tableName as string);
       let deleteQuery = query.delete();
       
       // Apply custom filter if provided

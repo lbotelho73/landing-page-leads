@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -249,7 +248,8 @@ export default function AppointmentsPage() {
               
               <AppointmentStatusSelect
                 value={statusFilter}
-                onChange={setStatusFilter}
+                onValueChange={setStatusFilter}
+                includeAll={true}
               />
               
               <DateRangePicker
@@ -324,8 +324,7 @@ export default function AppointmentsPage() {
                       </TableCell>
                       <TableCell>
                         <AppointmentStatusBadge 
-                          isCompleted={appointment.is_completed}
-                          isCancelled={!!appointment.cancellation_reason}
+                          status={appointment.is_completed ? "completed" : (appointment.cancellation_reason ? "canceled" : "scheduled")}
                         />
                       </TableCell>
                       <TableCell className="font-medium">

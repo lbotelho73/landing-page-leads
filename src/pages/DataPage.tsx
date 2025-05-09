@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,7 +33,7 @@ export default function DataPage() {
         
         // Check each table
         for (const table of tables) {
-          const { exists } = await checkAndInitializeTable(table.id);
+          const { exists } = await checkAndInitializeTable(asDbTable(table.id));
           if (!exists) {
             allExist = false;
             console.error(`Table ${table.id} does not exist`);

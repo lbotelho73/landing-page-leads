@@ -195,6 +195,27 @@ export default function CustomersPage() {
     setOpen(true);
   };
   
+  const handleDeleteSelected = () => {
+    if (!customerToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerToDelete.id);
+        
+      if (error) throw error;
+      
+      setCustomers(customers.filter(c => c.id !== customerToDelete.id));
+      toast.success('Cliente excluído com sucesso!');
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+    } catch (error) {
+      console.error('Erro ao excluir cliente:', error);
+      toast.error('Falha ao excluir cliente');
+    }
+  };
+  
   return (
     <AppLayout>
       <div className="page-container">
@@ -388,13 +409,11 @@ export default function CustomersPage() {
         </Card>
         
         <BulkDeleteDialog
-          isOpen={bulkDeleteOpen}
-          onClose={() => setBulkDeleteOpen(false)}
-          tableType="customers"
-          items={customers}
-          onDeleteComplete={fetchCustomers}
-          displayFields={['numeric_id', 'first_name', 'last_name', 'whatsapp_number']}
-          displayLabels={['ID', 'Nome', 'Sobrenome', 'WhatsApp']}
+          open={bulkDeleteOpen}
+          onOpenChange={setBulkDeleteOpen}
+          onConfirm={() => handleDeleteSelected()}
+          isDeleting={false}
+          entityName="clientes"
         />
         
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

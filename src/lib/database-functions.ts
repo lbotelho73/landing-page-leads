@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { DatabaseTablesType } from "@/lib/database-types";
+import { DatabaseTablesType, asDbTable } from "@/lib/database-types";
 import { formatDateForSupabase } from "@/lib/supabase-utils";
 
 // Function to get the count of records for a given table and date range

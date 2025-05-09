@@ -9,6 +9,19 @@ import { ReportFilter } from "@/components/reports/ReportFilter";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+// Define proper types for our data
+interface Professional {
+  first_name: string;
+  last_name: string;
+  commission_percentage: number;
+}
+
+interface Appointment {
+  primary_professional_id: string;
+  professionals: Professional;
+  final_price: string;
+}
+
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -100,14 +113,14 @@ export default function ReportsPage() {
       if (error) throw error;
       
       // Group by professional
-      const groupedData = data?.reduce((acc: Record<string, any>, appointment) => {
+      const groupedData = data?.reduce((acc: Record<string, any>, appointment: Appointment) => {
         if (!appointment.primary_professional_id || !appointment.professionals) return acc;
         
         const professionalId = appointment.primary_professional_id;
-        // Fix: professionals is an object, not an array
-        const professional = appointment.professionals;
+        // Fix: explicitly cast the professional to the correct type
+        const professional = appointment.professionals as unknown as Professional;
         
-        // Fix: Access properties from the professional object
+        // Now TypeScript knows these properties exist
         const professionalName = `${professional.first_name || ''} ${professional.last_name || ''}`.trim();
         const commissionPercentage = professional.commission_percentage || 0;
         const finalPrice = parseFloat(appointment.final_price) || 0;

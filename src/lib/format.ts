@@ -87,3 +87,8 @@ export const getThisYearRange = (): { start: Date; end: Date } => {
   
   return { start, end };
 };
+
+// Format time for display (e.g., "60" -> "1h", "90" -> "1h 30min")
+export const formatTimeDisplay = (minutes: number): string => {
+  return formatDuration(minutes);
+};

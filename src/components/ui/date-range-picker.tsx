@@ -89,3 +89,6 @@ export function DateRangePicker({
     </div>
   );
 }
+
+// Export DatePickerWithRange as an alias for DateRangePicker for backward compatibility
+export const DatePickerWithRange = DateRangePicker;

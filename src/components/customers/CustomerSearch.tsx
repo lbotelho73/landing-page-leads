@@ -12,9 +12,11 @@ import ptBR from "@/lib/i18n";
 interface CustomerSearchProps {
   onSelectCustomer: (customer: Customer) => void;
   onCreateNew: () => void;
+  value?: Customer | null;
+  onSelect?: (customer: Customer) => void;
 }
 
-export function CustomerSearch({ onSelectCustomer, onCreateNew }: CustomerSearchProps) {
+export function CustomerSearch({ onSelectCustomer, onCreateNew, value, onSelect }: CustomerSearchProps) {
   const [searchType, setSearchType] = useState<"whatsapp" | "name">("whatsapp");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -74,6 +76,8 @@ export function CustomerSearch({ onSelectCustomer, onCreateNew }: CustomerSearch
   };
   
   const handleSelectCustomer = (customer: Customer) => {
+    // Call both handlers for compatibility
+    if (onSelect) onSelect(customer);
     onSelectCustomer(customer);
     setSearchTerm("");
     setResults([]);
@@ -166,6 +170,17 @@ export function CustomerSearch({ onSelectCustomer, onCreateNew }: CustomerSearch
             )}
           </div>
         </Card>
+      )}
+      
+      {value && !showResults && (
+        <div className="p-2 bg-muted rounded-md">
+          <div className="font-medium">
+            {value.first_name} {value.last_name}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {value.whatsapp_number}
+          </div>
+        </div>
       )}
     </div>
   );

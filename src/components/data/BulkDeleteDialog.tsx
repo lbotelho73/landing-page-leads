@@ -1,90 +1,49 @@
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
-interface BulkDeleteDialogProps {
+export interface BulkDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
   isDeleting: boolean;
   entityName: string;
-  isOpen?: boolean; // Alias for open for compatibility
-  onClose?: () => void; // Alias for onOpenChange for compatibility
 }
 
-export function BulkDeleteDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  isDeleting,
-  entityName,
-  isOpen, // Support alternative prop name
-  onClose, // Support alternative prop name
+export function BulkDeleteDialog({ 
+  open, 
+  onOpenChange, 
+  onConfirm, 
+  isDeleting, 
+  entityName 
 }: BulkDeleteDialogProps) {
-  // Use either open or isOpen prop
-  const dialogOpen = open !== undefined ? open : isOpen;
-  
-  // Handle onOpenChange or onClose
-  const handleOpenChange = (newOpenState: boolean) => {
-    if (onOpenChange) onOpenChange(newOpenState);
-    if (!newOpenState && onClose) onClose();
-  };
-  
-  // Map table names to more user-friendly names
-  const getEntityDisplayName = (name: string) => {
-    const nameMap: Record<string, string> = {
-      customers: "clientes",
-      professionals: "profissionais",
-      services: "serviços",
-      appointments: "agendamentos",
-      payment_methods: "métodos de pagamento",
-      marketing_channels: "canais de marketing",
-      service_categories: "categorias de serviço"
-    };
-    
-    return nameMap[name] || name;
-  };
-  
   return (
-    <AlertDialog open={dialogOpen} onOpenChange={handleOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Esta ação excluirá permanentemente todos os {getEntityDisplayName(entityName)} do banco de dados.
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirmar exclusão</DialogTitle>
+          <DialogDescription>
+            Tem certeza que deseja excluir todos os registros de {entityName}? 
             Esta ação não pode ser desfeita.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              onConfirm();
-            }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
             disabled={isDeleting}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Excluindo...
-              </>
-            ) : (
-              "Sim, excluir tudo"
-            )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+            Cancelar
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={onConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Excluindo..." : "Excluir"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

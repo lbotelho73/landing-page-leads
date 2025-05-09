@@ -1,10 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateForSupabase } from "@/integrations/supabase/client";
+import { formatDateForSupabase } from "@/lib/supabase-utils";
 import { toast } from "sonner";
-import { parseAndFormatDate } from "./xlsx-utils";
+import { parseAndFormatDate } from "./supabase-utils";
 import { format } from "date-fns";
+import { DatabaseTablesType } from "./database-types";
 
-export async function checkAndInitializeTable(table: string) {
+export async function checkAndInitializeTable(table: DatabaseTablesType) {
   try {
     console.log(`Checking table: ${table}`);
     
@@ -31,16 +32,21 @@ export async function checkAndInitializeTable(table: string) {
       console.log(`Direct count failed for ${table}:`, directError);
     }
     
-    // Fallback: check information_schema
-    const { data, error } = await supabase.rpc('get_table_existence', { table_name: table });
-    
-    if (error) {
-      console.error(`Error checking if table ${table} exists:`, error);
-      return { exists: false, count: 0, error };
+    // Use custom SQL query with try/catch instead of RPC call
+    try {
+      const { data, error } = await supabase
+        .rpc('get_table_columns', { table_name: table });
+      
+      if (!error && data && data.length > 0) {
+        console.log(`Table ${table} exists check result via columns:`, data);
+        return { exists: true, count: 0 };
+      }
+    } catch (rpcError) {
+      console.log(`RPC fallback failed for ${table}:`, rpcError);
     }
     
-    console.log(`Table ${table} exists check result:`, data);
-    return { exists: !!data, count: 0 };
+    // Final fallback
+    return { exists: false, count: 0 };
     
   } catch (error) {
     console.error(`Unexpected error checking table ${table}:`, error);
@@ -92,7 +98,7 @@ export async function runQuery(query: any) {
 }
 
 // Updated to use the new SQL function for getting table columns
-export async function getTableColumns(tableName: string) {
+export async function getTableColumns(tableName: DatabaseTablesType) {
   console.log(`Fetching columns for table: ${tableName}`);
   
   try {
@@ -125,27 +131,8 @@ export async function getTableColumns(tableName: string) {
       return columns;
     }
     
-    // If that fails too, try querying the information_schema directly
-    const { data: schemaData, error: schemaError } = await supabase
-      .from('information_schema.columns')
-      .select('column_name')
-      .eq('table_schema', 'public')
-      .eq('table_name', tableName)
-      .not('column_name', 'in', '(id,created_at,updated_at)');
-      
-    if (!schemaError && schemaData && schemaData.length > 0) {
-      const columns = schemaData
-        .map(col => col.column_name)
-        .filter((col: string) => 
-          !['id', 'created_at', 'updated_at'].includes(col) && 
-          !col.includes('default-value')
-        );
-      
-      console.log(`Got columns from information_schema for ${tableName}:`, columns);
-      return columns;
-    }
-    
-    console.error(`Failed to get columns for ${tableName}:`, sampleError || schemaError || "No data available");
+    // If that fails too, use a more direct approach
+    console.error(`Failed to get columns for ${tableName}:`, sampleError || "No data available");
     return [];
   } catch (error) {
     console.error(`Error getting columns for table ${tableName}:`, error);
@@ -363,7 +350,7 @@ export async function getMarketingChannelsWithData() {
 export { formatDateForSupabase };
 
 // Import the Excel date formatting function from xlsx-utils
-export { parseAndFormatDate as formatExcelDateForSupabase } from "@/lib/xlsx-utils";
+export { parseAndFormatDate as formatExcelDateForSupabase } from "@/lib/supabase-utils";
 
 // Helper function to fix the "this year" filter to use the current year
 export function getCurrentYear(): number {

@@ -29,14 +29,14 @@ export interface UserProfile {
   created_at?: string;
 }
 
-// Function overloads for asDbTable - combining generic and string versions
+// Function to help with type safety when using dynamic table names
 export function asDbTable<T extends DatabaseTablesType>(tableName: T): T;
 export function asDbTable(tableName: string): DatabaseTablesType;
 export function asDbTable(tableName: string | DatabaseTablesType): DatabaseTablesType {
   return tableName as DatabaseTablesType;
 }
 
-// Function overloads for asDbView - combining generic and string versions
+// Function to help with type safety when using dynamic view names
 export function asDbView<T extends DatabaseViewsType>(viewName: T): T;
 export function asDbView(viewName: string): DatabaseViewsType;
 export function asDbView(viewName: string | DatabaseViewsType): DatabaseViewsType {

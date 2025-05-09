@@ -9,11 +9,11 @@ import { DatabaseTablesType } from "@/lib/database-types";
 
 // Define the props interface for the component
 export interface BulkDeleteButtonProps {
-  tableName: DatabaseTablesType | string;
+  tableName: DatabaseTablesType;
   customFilter?: Record<string, any>;
   onSuccess?: () => void;
   buttonText?: string;
-  buttonVariant?: string;
+  buttonVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
 }
 
 export function BulkDeleteButton({ 
@@ -32,10 +32,9 @@ export function BulkDeleteButton({
     try {
       console.log(`Executing bulk delete on table: ${tableName}`);
       
-      // Use type casting to handle dynamic table name
-      // This avoids the "excessively deep and possibly infinite" type error
+      // Create a typed query builder
       let query = supabase
-        .from(tableName as any)
+        .from(tableName)
         .delete();
       
       // Apply custom filter if provided
@@ -44,7 +43,7 @@ export function BulkDeleteButton({
           query = query.eq(column, value);
         });
       } else {
-        // If no filter provided, confirm with Supabase that we want to delete all
+        // If no filter provided, confirm we want to delete all
         query = query.filter('id', 'neq', null);
       }
       
@@ -71,7 +70,7 @@ export function BulkDeleteButton({
   return (
     <>
       <Button
-        variant={buttonVariant as any}
+        variant={buttonVariant}
         size="sm"
         onClick={() => setShowDialog(true)}
       >

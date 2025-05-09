@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ptBR } from '@/lib/i18n';
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateForSupabase } from '@/integrations/supabase/client';
+import { formatDateForSupabase } from '@/lib/supabase-utils';
 import { formatCurrency } from "@/lib/format";
 import { ReportFilter } from "@/components/reports/ReportFilter";
 import { toast } from "sonner";
@@ -69,7 +69,7 @@ export default function ReportsPage() {
         }
         
         acc[date].appointments += 1;
-        acc[date].revenue += parseFloat(appointment.final_price) || 0;
+        acc[date].revenue += parseFloat(String(appointment.final_price)) || 0;
         
         return acc;
       }, {});

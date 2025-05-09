@@ -216,11 +216,11 @@ export function MarketingChannels() {
           ) : (
             <>
               <div className="mb-4">
-                <BulkDeleteButton
+                <BulkDeleteButton 
                   tableName="marketing_channels"
-                  onSuccess={fetchChannels}
-                  buttonText="Exclusão em Lote"
-                  buttonVariant="outline"
+                  onSuccess={fetchChannels} 
+                  buttonText="Excluir Todos"
+                  buttonVariant="destructive"
                 />
               </div>
               <Table>

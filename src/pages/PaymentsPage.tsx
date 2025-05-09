@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ptBR } from '@/lib/i18n';
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateForSupabase } from "@/lib/supabase-utils";
+import { formatDateForSupabase } from '@/lib/supabase-utils';
 import { PaymentFilter } from "@/components/payments/PaymentFilter";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";

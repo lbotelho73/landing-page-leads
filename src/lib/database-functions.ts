@@ -16,7 +16,7 @@ export async function getCountForPeriod(
     
     // Use type assertion to handle the table name
     const { count, error } = await supabase
-      .from(tableName as any)
+      .from(tableName)
       .select('*', { count: 'exact', head: true })
       .gte(dateColumn, formattedStartDate)
       .lte(dateColumn, formattedEndDate);

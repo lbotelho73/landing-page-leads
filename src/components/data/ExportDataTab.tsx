@@ -1,5 +1,3 @@
-alert("IMPORT DATA TAB FOI CARREGADO"); // para testes! Pode remover depois.
-console.log("-------IMPORT DATA TAB FOI CARREGADO-------");
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

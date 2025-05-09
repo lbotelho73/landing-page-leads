@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { supabase } from './supabaseClient'; // Ajuste se o seu caminho do supabase for outro
+import { supabase } from './supabaseClient'; // Ajuste para o caminho do seu supabase client
 import { toast } from 'react-toastify';
 
 interface TableOption {
@@ -8,9 +8,10 @@ interface TableOption {
   name: string;
 }
 
+// Altere para os nomes exatos das suas tabelas!
 const tables: TableOption[] = [
   { id: "customer", name: "Clientes" },
-  // Adicione outras tabelas, seguindo sempre o nome igual ao do banco!
+  // { id: "outra_tabela", name: "Outro Nome" },
 ];
 
 const ImportDataTab: React.FC = () => {
@@ -22,12 +23,13 @@ const ImportDataTab: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'upload' | 'mapping'>('upload');
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Função para buscar as colunas da tabela do banco
+  // Busca as colunas da tabela no Supabase
   const fetchTableColumns = async (tableName: string) => {
     try {
       const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
       if (error) throw error;
-      // Garante array apenas de strings
+
+      // Sempre força para string!
       if (Array.isArray(data) && data.length && typeof data[0] === "object" && "column_name" in data[0]) {
         setTableColumns(data.map((col: any) => String(col.column_name)));
       } else if (Array.isArray(data)) {
@@ -51,15 +53,15 @@ const ImportDataTab: React.FC = () => {
     }
   }, [selectedTable]);
 
-  // Manipular upload do arquivo
+  // Upload de arquivo
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = (evt) => {
       try {
-        const data = e.target?.result;
+        const data = evt.target?.result;
         if (!data) throw new Error("Falha ao ler arquivo");
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
@@ -70,29 +72,33 @@ const ImportDataTab: React.FC = () => {
           toast.error("O arquivo não contém dados suficientes");
           return;
         }
-        const headers = jsonData[0] as (string | undefined)[];
+        const headers = jsonData[0];
         if (!headers || !headers.length) {
           toast.error("Arquivo sem cabeçalhos.");
           return;
         }
 
-        // Garante que todos os headers sejam string
-        const normalizedHeaders = headers.map(h => String(h).trim());
+        // Garante todos headers como string
+        const normalizedHeaders = (headers || []).map(h => typeof h === "string" ? h : String(h));
+        // Garante todas colunas do banco como string
+        const onlyStringTableColumns = (tableColumns || []).filter(col => typeof col === 'string').map(col => String(col));
 
-        // Garante que todas as colunas do banco são string
-        const onlyStringTableColumns = tableColumns.filter(col => typeof col === "string").map(col => String(col).trim());
+        // Testa log antes do mapeamento para debug
+        console.log("Headers:", normalizedHeaders);
+        console.log("TableColumns:", onlyStringTableColumns);
 
-        // Cria mapeamento inicial, se possível
+        // Mapeamento inicial
         const initialMapping: Record<string, string> = {};
-        normalizedHeaders.forEach((sheetCol) => {
-          const matchingDbColumn = onlyStringTableColumns.find(
-            dbCol => dbCol.toLowerCase() === sheetCol.toLowerCase()
+        normalizedHeaders.forEach(sheetCol => {
+          if (typeof sheetCol !== 'string') return; // pular se não for string
+          const matchingDbColumn = onlyStringTableColumns.find(dbCol =>
+            typeof dbCol === 'string' && dbCol.toLowerCase() === sheetCol.toLowerCase()
           );
           if (matchingDbColumn) initialMapping[sheetCol] = matchingDbColumn;
         });
         setMappings(initialMapping);
 
-        // Monta dados das linhas do arquivo
+        // Processa linhas do arquivo
         const dataRows = jsonData.slice(1).map((row: any[]) => {
           const obj: Record<string, any> = {};
           normalizedHeaders.forEach((header, idx) => {
@@ -112,13 +118,12 @@ const ImportDataTab: React.FC = () => {
     reader.readAsArrayBuffer(file);
   };
 
-  // Função para submeter importação (exemplo didático, adapte conforme sua lógica)
+  // Função para importação final (exemplo didático)
   const handleImport = async () => {
     try {
       setLoading(true);
-      // Adapte esse trecho conforme sua API/endpoint!
-      /* Exemplo: */
-      // const response = await supabase.from(selectedTable).insert(sheetData);
+      // Implemente sua lógica de importação para o Supabase!
+      // Exemplo: await supabase.from(selectedTable).insert(sheetData);
       toast.success("Importação concluída (simulação)");
       setLoading(false);
     } catch (error) {
@@ -147,7 +152,7 @@ const ImportDataTab: React.FC = () => {
         </div>
       )}
 
-      {/* Preview dos dados e mapeamento */}
+      {/* Prévia e mapeamento */}
       {activeTab === "mapping" && (
         <div>
           <h3>Prévia dos dados:</h3>

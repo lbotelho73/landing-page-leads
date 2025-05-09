@@ -1,7 +1,7 @@
 
 import * as React from "react";
 import { CalendarIcon } from "lucide-react";
-import { DateRange } from "react-day-picker";
+import { DateRange as DayPickerDateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -12,11 +12,16 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+// Export the DateRange type so it can be used in other components
+export type DateRange = DayPickerDateRange;
+
 export interface DateRangePickerProps {
-  value: DateRange | undefined;
+  value?: DateRange;
   onChange?: (date: DateRange | undefined) => void;
   onValueChange?: (date: DateRange | undefined) => void;
   className?: string;
+  from?: Date;
+  to?: Date;
 }
 
 export function DateRangePicker({
@@ -24,7 +29,18 @@ export function DateRangePicker({
   onChange,
   onValueChange,
   className,
+  from,
+  to,
 }: DateRangePickerProps) {
+  // Convert from/to props to value if provided
+  const dateRange = React.useMemo(() => {
+    if (value) return value;
+    if (from || to) {
+      return { from: from, to: to };
+    }
+    return undefined;
+  }, [value, from, to]);
+
   const handleDateChange = (date: DateRange | undefined) => {
     // Call both handlers to support both naming conventions
     if (onChange) onChange(date);
@@ -39,18 +55,18 @@ export function DateRangePicker({
             id="date"
             variant={"outline"}
             className={`w-full justify-start text-left font-normal ${
-              !value?.from && "text-muted-foreground"
+              !dateRange?.from && "text-muted-foreground"
             }`}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {value?.from ? (
-              value.to ? (
+            {dateRange?.from ? (
+              dateRange.to ? (
                 <>
-                  {format(value.from, "dd/MM/yyyy", { locale: ptBR })} -{" "}
-                  {format(value.to, "dd/MM/yyyy", { locale: ptBR })}
+                  {format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} -{" "}
+                  {format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}
                 </>
               ) : (
-                format(value.from, "dd/MM/yyyy", { locale: ptBR })
+                format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
               )
             ) : (
               <span>Selecione um período</span>
@@ -61,8 +77,8 @@ export function DateRangePicker({
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={value?.from}
-            selected={value}
+            defaultMonth={dateRange?.from}
+            selected={dateRange}
             onSelect={handleDateChange}
             locale={ptBR}
             numberOfMonths={2}

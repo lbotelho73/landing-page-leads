@@ -104,8 +104,9 @@ export default function ReportsPage() {
         if (!appointment.primary_professional_id || !appointment.professionals) return acc;
         
         const professionalId = appointment.primary_professional_id;
-        const professionalName = `${appointment.professionals.first_name} ${appointment.professionals.last_name}`;
-        const commissionPercentage = appointment.professionals.commission_percentage || 0;
+        const professional = appointment.professionals;
+        const professionalName = `${professional.first_name} ${professional.last_name}`;
+        const commissionPercentage = professional.commission_percentage || 0;
         const finalPrice = parseFloat(appointment.final_price) || 0;
         const commission = (finalPrice * commissionPercentage) / 100;
         

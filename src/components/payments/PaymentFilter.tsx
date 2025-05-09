@@ -1,7 +1,8 @@
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateRange } from "@/components/ui/date-range-picker";
+import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
 
 type PaymentFilterProps = {
   onDateRangeChange: (range: { from: Date; to: Date } | undefined) => void;
@@ -88,9 +89,8 @@ export function PaymentFilter({ onDateRangeChange, onStatusChange, dateRange, st
           
           {selectedPeriod === "custom" && (
             <div className="mt-2">
-              <DateRange 
-                from={dateRange?.from}
-                to={dateRange?.to}
+              <DateRangePicker 
+                value={dateRange ? { from: dateRange.from, to: dateRange.to } : undefined}
                 onValueChange={onDateRangeChange}
               />
             </div>

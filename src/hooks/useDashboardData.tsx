@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateForSupabase } from '@/integrations/supabase/client';
+import { formatDateForSupabase } from '@/lib/supabase-utils';
 import { toast } from "sonner";
 import { Appointment } from '@/components/dashboard/AppointmentsSchedule';
 

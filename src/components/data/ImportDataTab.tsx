@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,8 +13,9 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleAuthGuide } from "./GoogleAuthGuide";
 import * as XLSX from "xlsx";
-import { sanitizeDataForSupabase } from "@/integrations/supabase/client";
+import { sanitizeDataForSupabase } from "@/lib/supabase-utils";
 import { BulkDeleteButton } from "./BulkDeleteButton";
+import { asDbTable } from "@/lib/database-types";
 
 interface ImportDataTabProps {
   tables: Array<{
@@ -246,9 +246,9 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
           sanitizeDataForSupabase(recordsToInsert) : 
           recordsToInsert;
         
-        // Insert batch into database
+        // Insert batch into database using type assertion for table name
         const { error } = await supabase
-          .from(selectedTable)
+          .from(asDbTable(selectedTable))
           .insert(sanitizedRecords);
           
         if (error) {

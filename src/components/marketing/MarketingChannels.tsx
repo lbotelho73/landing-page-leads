@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -218,11 +217,8 @@ export function MarketingChannels() {
             <>
               <div className="mb-4">
                 <BulkDeleteButton
-                  tableType="marketing_channels"
-                  displayFields={["name", "description"]}
-                  displayLabels={["Nome", "Descrição"]}
-                  items={channels}
-                  onDeleteComplete={fetchChannels}
+                  tableName="marketing_channels"
+                  onSuccess={fetchChannels}
                   buttonText="Exclusão em Lote"
                   buttonVariant="outline"
                 />

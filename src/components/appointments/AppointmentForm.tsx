@@ -28,8 +28,8 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomerSearch } from "@/components/customers/CustomerSearch";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateForSupabase } from "@/lib/supabase-utils";
 import { formatTimeDisplay } from "@/lib/format";
-import { formatDateForSupabase } from "@/integrations/supabase/client";
 
 interface AppointmentFormProps {
   appointment?: any;

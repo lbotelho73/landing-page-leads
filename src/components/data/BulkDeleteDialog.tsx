@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface BulkDeleteDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  tableType: "customers" | "professionals" | "services" | "appointments";
+  tableType: "customers" | "professionals" | "services" | "appointments" | "marketing_channels";
   items: any[];
   onDeleteComplete: () => void;
   idField?: string;
@@ -59,6 +59,7 @@ export function BulkDeleteDialog({
       case "professionals": return "Profissionais";
       case "services": return "Serviços";
       case "appointments": return "Agendamentos";
+      case "marketing_channels": return "Canais de Marketing";
       default: return "Itens";
     }
   };

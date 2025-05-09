@@ -27,11 +27,13 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
       return;
     }
     
+    console.log("File data received:", data.slice(0, 2), "Filename:", fileName);
     setFileData(data);
     
     // Extract headers from the first row
     const extractedHeaders = Object.keys(data[0]);
     setHeaders(extractedHeaders);
+    console.log("Extracted headers:", extractedHeaders);
     
     // Try to guess target table from filename
     const possibleTables = ["customers", "professionals", "services", "appointments"];
@@ -41,6 +43,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
     );
     
     if (tableGuess) {
+      console.log("Guessed table from filename:", tableGuess);
       setTargetTable(tableGuess);
       fetchTableColumns(tableGuess);
     }
@@ -51,19 +54,46 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
   
   const fetchTableColumns = async (tableName: string) => {
     try {
+      console.log("Fetching columns for table:", tableName);
       const { data, error } = await supabase.rpc('get_table_columns', {
         table_name: tableName
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error from RPC:', error);
+        throw error;
+      }
+      
+      console.log("Table columns received:", data);
       setTableColumns(data || []);
     } catch (error) {
       console.error('Error fetching table columns:', error);
       toast.error('Erro ao carregar colunas da tabela');
+      
+      // Fallback: try to get a single row to extract columns
+      try {
+        const { data: sampleData, error: sampleError } = await supabase
+          .from(tableName)
+          .select()
+          .limit(1);
+          
+        if (sampleError) throw sampleError;
+        
+        if (sampleData && sampleData.length > 0) {
+          const columns = Object.keys(sampleData[0]).filter(col => 
+            !['id', 'created_at', 'updated_at'].includes(col)
+          );
+          console.log("Fallback: extracted columns from sample row:", columns);
+          setTableColumns(columns);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+      }
     }
   };
   
   const handleTableChange = (table: string) => {
+    console.log("Table changed to:", table);
     setTargetTable(table);
     fetchTableColumns(table);
     // Reset field mappings when table changes
@@ -75,6 +105,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
       ...prev,
       [csvField]: dbField
     }));
+    console.log("Updated mapping:", csvField, "->", dbField);
   };
   
   const handleImport = async () => {
@@ -98,6 +129,8 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
         
         return newRow;
       });
+      
+      console.log("Transformed data:", transformedData.slice(0, 2));
       
       // Handle empty rows
       const nonEmptyRows = transformedData.filter(row => Object.keys(row).length > 0);

@@ -23,6 +23,7 @@ export function TeamMembersCard({ members = [] }: TeamMembersCardProps) {
 
   // Function to get initials from name
   const getInitials = (name: string) => {
+    if (!name) return "??";
     return name
       .split(' ')
       .map(part => part[0])
@@ -33,6 +34,7 @@ export function TeamMembersCard({ members = [] }: TeamMembersCardProps) {
 
   // Format role for display
   const formatRole = (role: string) => {
+    if (!role) return "Usuário";
     switch (role.toLowerCase()) {
       case 'admin': return 'Administrador';
       case 'editor': return 'Editor';
@@ -45,33 +47,66 @@ export function TeamMembersCard({ members = [] }: TeamMembersCardProps) {
     const fetchTeamMembers = async () => {
       setLoading(true);
       try {
-        // Fetch user profiles from database
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('role', 'admin')
-          .or('role.eq.editor,role.eq.viewer');
+        // First try the auth.users table
+        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
         
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
+        if (!authError && authUsers && authUsers.users.length > 0) {
+          console.log("Auth users found:", authUsers.users);
+          
           // Format the data for display
-          const formattedMembers: TeamMember[] = data.map(user => ({
-            name: user.email.split('@')[0],  // Use email username as name if no name available
-            email: user.email,
-            avatarFallback: getInitials(user.email.split('@')[0]),
-            role: user.role
+          const formattedMembers: TeamMember[] = authUsers.users.map(user => ({
+            name: user.user_metadata?.name || user.email?.split('@')[0] || "User",
+            email: user.email || "",
+            avatarFallback: getInitials(user.user_metadata?.name || user.email?.split('@')[0] || "User"),
+            role: user.role || "viewer"
+          }));
+          
+          setTeamMembers(formattedMembers);
+          setLoading(false);
+          return;
+        }
+        
+        // If we can't access auth.users, try the user_profiles table
+        const { data: profiles, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('*');
+        
+        if (!profilesError && profiles && profiles.length > 0) {
+          console.log("User profiles found:", profiles);
+          
+          // Format the data for display
+          const formattedMembers: TeamMember[] = profiles.map(profile => ({
+            name: profile.email.split('@')[0],
+            email: profile.email,
+            avatarFallback: getInitials(profile.email.split('@')[0]),
+            role: profile.role || "viewer"
           }));
           
           setTeamMembers(formattedMembers);
         } else {
-          // If no members found, show the default
-          setTeamMembers([{
-            name: "Admin",
-            email: "admin@example.com",
-            avatarFallback: "AD",
-            role: "admin"
-          }]);
+          // As a last resort, try to check if there's an authenticated user
+          const { data: authData } = await supabase.auth.getUser();
+          
+          if (authData && authData.user) {
+            console.log("Current authenticated user found:", authData.user);
+            
+            // Add the current user
+            setTeamMembers([{
+              name: authData.user.user_metadata?.name || authData.user.email?.split('@')[0] || "Admin",
+              email: authData.user.email || "admin@example.com",
+              avatarFallback: getInitials(authData.user.user_metadata?.name || authData.user.email?.split('@')[0] || "AD"),
+              role: "admin"
+            }]);
+          } else {
+            // If no members are found, show a placeholder admin
+            console.log("No team members found, showing placeholder");
+            setTeamMembers([{
+              name: "Admin",
+              email: "admin@example.com",
+              avatarFallback: "AD",
+              role: "admin"
+            }]);
+          }
         }
       } catch (error) {
         console.error('Error fetching team members:', error);

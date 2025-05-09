@@ -138,21 +138,21 @@ export function useDashboardData(initialTimeRange: TimeRange = "day", selectedDa
       
       console.log('Fetching revenue data from', formattedStartDate, 'to', formattedEndDate);
       
-      // Get completed appointments with final price
+      // Fix: Now ensuring we get proper revenue data by setting an explicit range
+      // and not restricting to just completed appointments
       const { data, error } = await supabase
         .from('appointments')
-        .select('final_price, is_completed')
+        .select('final_price')
         .gte('date', formattedStartDate)
-        .lte('date', formattedEndDate)
-        .eq('is_completed', true);
+        .lte('date', formattedEndDate);
         
       if (error) throw error;
       
-      console.log("Revenue data fetched:", data?.length || 0, "completed appointments");
+      console.log("Revenue data fetched:", data?.length || 0, "appointments");
       
-      // Calculate total revenue
+      // Calculate total revenue - making sure to properly convert to number
       const totalRevenue = (data || []).reduce((sum, appointment) => {
-        const price = Number(appointment.final_price || 0);
+        const price = parseFloat(appointment.final_price) || 0;
         return sum + price;
       }, 0);
       
@@ -160,6 +160,8 @@ export function useDashboardData(initialTimeRange: TimeRange = "day", selectedDa
       const avgTicket = data && data.length > 0 
         ? totalRevenue / data.length 
         : 0;
+      
+      console.log("Total revenue:", totalRevenue, "Average ticket:", avgTicket);
       
       return { totalRevenue, avgTicket };
     } catch (error) {

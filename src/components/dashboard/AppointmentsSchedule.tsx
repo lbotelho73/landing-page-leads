@@ -3,7 +3,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ptBR } from '@/lib/i18n';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { ptBR as ptBRLocale } from 'date-fns/locale';
 
 export interface Appointment {
   id: string;
@@ -25,7 +26,7 @@ export function AppointmentsSchedule({ appointments, loading }: AppointmentsSche
     
     try {
       const date = new Date(dateString);
-      return date ? format(date, 'dd/MM/yyyy') : dateString;
+      return format(date, 'dd/MM/yyyy', { locale: ptBRLocale });
     } catch (error) {
       console.error('Error formatting date:', error);
       return dateString;

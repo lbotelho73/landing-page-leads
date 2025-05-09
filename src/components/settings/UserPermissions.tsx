@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile, Permission } from "@/database.types";
+import type { UserProfile, Permission } from "@/database.types";
 
 type Role = "admin" | "editor" | "viewer";
 
@@ -33,12 +33,32 @@ export function UserPermissions() {
   const fetchUsers = async () => {
     try {
       console.log("Fetching users...");
+      // First try to get auth users (only admins can access this)
+      try {
+        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+        if (!authError && authData?.users.length) {
+          console.log("Auth users found:", authData.users);
+          // Convert to user_profiles format
+          const authUsers = authData.users.map(user => ({
+            id: user.id,
+            email: user.email || "",
+            role: (user.app_metadata?.role as Role) || "viewer",
+            created_at: user.created_at
+          }));
+          setUsers(authUsers);
+          return;
+        }
+      } catch (authError) {
+        console.log("Cannot access auth users:", authError);
+      }
+      
+      // Fall back to user_profiles table
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*');
       
       if (error) throw error;
-      console.log("Users fetched:", data);
+      console.log("Users fetched from user_profiles:", data);
       setUsers(data || []);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -105,6 +125,19 @@ export function UserPermissions() {
     
     setLoading(true);
     try {
+      // Check if the user already exists in user_profiles
+      const { data: existingUser, error: checkError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('email', newUserEmail)
+        .single();
+        
+      if (!checkError && existingUser) {
+        toast.warning("Este email já está registrado");
+        setLoading(false);
+        return;
+      }
+      
       // Create new user in the database
       const { data, error } = await supabase
         .from('user_profiles')
@@ -160,7 +193,7 @@ export function UserPermissions() {
       const { error: deleteError } = await supabase
         .from('role_permissions')
         .delete()
-        .in('role', ['admin', 'editor', 'viewer']);
+        .gte('id', ''); // Delete all records
       
       if (deleteError) {
         console.error("Error deleting existing permissions:", deleteError);
@@ -201,12 +234,39 @@ export function UserPermissions() {
         console.log("Inserted permissions:", data);
       }
       
+      // Now update all user profile roles to match their role-specific permissions
+      await updateUserRoles();
+      
       toast.success("Permissões salvas com sucesso");
     } catch (error) {
       console.error("Error saving permissions:", error);
       toast.error("Falha ao salvar permissões");
     } finally {
       setSavingPermissions(false);
+    }
+  };
+  
+  // New function to update user roles
+  const updateUserRoles = async () => {
+    try {
+      // For each user in user_profiles, update their role-specific permissions
+      for (const user of users) {
+        if (!user.role) continue;
+        
+        const userRole = user.role;
+        console.log(`Updating permissions for user ${user.email} with role ${userRole}`);
+        
+        // Try to update permissions in auth.users if we have access
+        try {
+          await supabase.auth.admin.updateUserById(user.id, {
+            app_metadata: { role: userRole }
+          });
+        } catch (authError) {
+          console.log("Cannot update auth user roles:", authError);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating user roles:", error);
     }
   };
   

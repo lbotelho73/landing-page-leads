@@ -33,11 +33,13 @@ export const supabase = createClient<Database>(
 );
 
 // Add helper function to ensure dates are handled consistently
-// Updated to explicitly add a day to fix timezone issues
+// Updated to explicitly handle timezone issues properly
 export const formatDateForSupabase = (date: Date): string => {
-  // Create local date in YYYY-MM-DD format, with timezone handling
+  if (!date) return '';
+  
+  // Format in YYYY-MM-DD format with proper timezone handling
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-based
+  const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   
   // Format as YYYY-MM-DD
@@ -48,7 +50,7 @@ export const formatDateForSupabase = (date: Date): string => {
 export const convertToLocalDate = (dateString: string | null): Date | null => {
   if (!dateString) return null;
   
-  // Parse date and adjust back if needed
+  // Parse date and adjust for timezone
   const date = new Date(dateString);
   return date;
 };

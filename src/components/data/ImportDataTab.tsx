@@ -1,9 +1,10 @@
-alert("IMPORT DATA TAB FOI CARREGADO");
+alert("IMPORT DATA TAB FOI CARREGADO"); // para testes! Pode remover depois.
 console.log("-------IMPORT DATA TAB FOI CARREGADO-------");
 
-import React, { useState, useEffect } from "react";
-import * as XLSX from "xlsx";
-import { supabase } from "@/integrations/supabase/client";
+import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
+import { supabase } from "@/integrations/supabase/client"; // Ajuste para o caminho do seu supabase client
+//import { toast } from 'react-toastify';
 
 interface TableOption {
   id: string;
@@ -17,21 +18,21 @@ const tables: TableOption[] = [
 ];
 
 const ImportDataTab: React.FC = () => {
-  const [selectedTable, setSelectedTable] = useState<string>("");
+  const [selectedTable, setSelectedTable] = useState<string>('');
   const [tableColumns, setTableColumns] = useState<string[]>([]);
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [mappings, setMappings] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"upload" | "mapping">("upload");
+  const [activeTab, setActiveTab] = useState<'upload' | 'mapping'>('upload');
   const [loading, setLoading] = useState<boolean>(false);
 
   // Busca as colunas da tabela no Supabase
   const fetchTableColumns = async (tableName: string) => {
     try {
-      const { data, error } = await supabase.rpc("get_table_columns", { table_name: tableName });
+      const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
       if (error) throw error;
 
-      // Força para string!
+      // Sempre força para string!
       if (Array.isArray(data) && data.length && typeof data[0] === "object" && "column_name" in data[0]) {
         setTableColumns(data.map((col: any) => String(col.column_name)));
       } else if (Array.isArray(data)) {
@@ -51,7 +52,7 @@ const ImportDataTab: React.FC = () => {
       setSheetData([]);
       setPreviewData([]);
       setMappings({});
-      setActiveTab("upload");
+      setActiveTab('upload');
     }
   }, [selectedTable]);
 
@@ -65,7 +66,7 @@ const ImportDataTab: React.FC = () => {
       try {
         const data = evt.target?.result;
         if (!data) throw new Error("Falha ao ler arquivo");
-        const workbook = XLSX.read(data, { type: "array" });
+        const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
@@ -83,18 +84,18 @@ const ImportDataTab: React.FC = () => {
         // Garante todos headers como string
         const normalizedHeaders = (headers || []).map(h => typeof h === "string" ? h : String(h));
         // Garante todas colunas do banco como string
-        const onlyStringTableColumns = (tableColumns || []).filter(col => typeof col === "string").map(col => String(col));
+        const onlyStringTableColumns = (tableColumns || []).filter(col => typeof col === 'string').map(col => String(col));
 
         // Testa log antes do mapeamento para debug
         console.log("Headers:", normalizedHeaders);
         console.log("TableColumns:", onlyStringTableColumns);
 
-        // Mapeamento inicial seguro
+        // Mapeamento inicial
         const initialMapping: Record<string, string> = {};
         normalizedHeaders.forEach(sheetCol => {
-          if (typeof sheetCol !== "string") return; // pular se não for string
+          if (typeof sheetCol !== 'string') return; // pular se não for string
           const matchingDbColumn = onlyStringTableColumns.find(dbCol =>
-            typeof dbCol === "string" && dbCol.toLowerCase() === sheetCol.toLowerCase()
+            typeof dbCol === 'string' && dbCol.toLowerCase() === sheetCol.toLowerCase()
           );
           if (matchingDbColumn) initialMapping[sheetCol] = matchingDbColumn;
         });
@@ -110,7 +111,7 @@ const ImportDataTab: React.FC = () => {
         });
         setSheetData(dataRows);
         setPreviewData(dataRows.slice(0, 5));
-        setActiveTab("mapping");
+        setActiveTab('mapping');
       } catch (error) {
         console.error("Erro ao processar arquivo:", error);
         alert("Erro ao processar o arquivo");

@@ -5,7 +5,7 @@ import { Trash } from "lucide-react";
 import { BulkDeleteDialog } from "./BulkDeleteDialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { DatabaseTablesType, asDbTable } from "@/lib/database-types";
+import { DatabaseTablesType } from "@/lib/database-types";
 
 // Define the props interface for the component
 export interface BulkDeleteButtonProps {
@@ -32,10 +32,10 @@ export function BulkDeleteButton({
     try {
       console.log(`Executing bulk delete on table: ${tableName}`);
       
-      // Use the asDbTable helper function to safely cast the table name
-      // This prevents TypeScript recursion errors
+      // Cast the table name to any to avoid TypeScript recursion errors
+      // This is safe because we know tableName is constrained to DatabaseTablesType
       const deleteQuery = supabase
-        .from(asDbTable(tableName))
+        .from(tableName as any)
         .delete();
       
       // Apply custom filter if provided

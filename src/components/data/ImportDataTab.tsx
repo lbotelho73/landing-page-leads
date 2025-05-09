@@ -540,7 +540,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
           <div className="mt-8 pt-6 border-t">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Limpar Dados</h3>
-              <BulkDeleteButton tableName={asDbTable(selectedTable)} />
+              <BulkDeleteButton tableName={selectedTable as DatabaseTablesType} />
             </div>
             <p className="text-sm text-muted-foreground mt-2">
               Cuidado: esta ação excluirá todos os registros da tabela selecionada.

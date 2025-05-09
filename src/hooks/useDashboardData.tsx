@@ -191,9 +191,14 @@ export function useDashboardData(initialTimeRange: TimeRange = "day", selectedDa
           `${professional.first_name || ''} ${professional.last_name || ''}`.trim() : 
           'Profissional não atribuído';
           
+        // Format to match expected interface (ISO date string for proper date display)
+        const timeString = apt.date ? 
+          (typeof apt.date === 'string' ? apt.date : apt.date.toISOString().split('T')[0]) : 
+          '';
+          
         return {
           id: apt.id,
-          time: apt.date, // Changed from apt.time to apt.date to display date instead of time
+          time: timeString, // Use a date string that will be formatted properly
           clientName: customerName,
           serviceName: serviceName,
           masseuseeName: professionalName

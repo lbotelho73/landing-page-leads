@@ -210,7 +210,7 @@ export function UserPermissions() {
       const { error: deleteError } = await supabase
         .from('role_permissions')
         .delete()
-        .gte('id', '');
+        .not('id', 'is', null); // Corrigido para usar .not() com 'is' em vez de .gte()
       
       if (deleteError) {
         console.error("Error deleting existing permissions:", deleteError);
@@ -238,17 +238,14 @@ export function UserPermissions() {
       console.log("Inserting role permissions:", rolesToInsert);
       
       if (rolesToInsert.length > 0) {
-        const { data, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from('role_permissions')
-          .insert(rolesToInsert)
-          .select();
+          .insert(rolesToInsert);
         
         if (insertError) {
           console.error("Error inserting permissions:", insertError);
           throw insertError;
         }
-        
-        console.log("Inserted permissions:", data);
       }
       
       // Now update all user profile roles to match their role-specific permissions
@@ -386,7 +383,7 @@ export function UserPermissions() {
       toast.error("Falha ao remover usuário");
     }
   };
-  
+
   return (
     <>
       <Card className="mb-6">

@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -50,8 +49,8 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [sheetData, setSheetData] = useState<any[] | null>(null);
-  const [availableColumns, setAvailableColumns] = useState<string[]>([]);
-  const [mappedColumns, setMappedColumns] = useState<Record<string, string>>({});
+  const [tableColumns, setTableColumns] = useState<string[]>([]);
+  const [mappings, setMappings] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [importSuccess, setImportSuccess] = useState<boolean | null>(null);
   const [importStats, setImportStats] = useState({ total: 0, success: 0, errors: 0 });
@@ -63,7 +62,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
   useEffect(() => {
     if (selectedTable) {
       fetchTableColumns(selectedTable);
-      setMappedColumns({});
+      setMappings({});
       setSheetData(null);
       setFile(null);
       setPreviewData([]);
@@ -75,34 +74,14 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
   // Fetch available columns for selected table
   const fetchTableColumns = async (tableName: string) => {
     try {
-      const { data, error } = await supabase.rpc('get_importable_columns', { 
+      const { data, error } = await supabase.rpc('get_table_columns', { 
         table_name: tableName 
       });
       
       if (error) throw error;
       
       console.log(`Available columns for ${tableName}:`, data);
-      setAvailableColumns(data || []);
-      
-      // Create default mappings (match by name)
-      if (sheetData && sheetData.length > 0 && data) {
-        const sheetColumns = Object.keys(sheetData[0]);
-        const initialMapping: Record<string, string> = {};
-        
-        // For each available column in the DB table
-        data.forEach((dbColumn: string) => {
-          // Try to find matching column in sheet
-          const matchingSheetColumn = sheetColumns.find(
-            sheetCol => sheetCol.toLowerCase() === dbColumn.toLowerCase()
-          );
-          
-          if (matchingSheetColumn) {
-            initialMapping[dbColumn] = matchingSheetColumn;
-          }
-        });
-        
-        setMappedColumns(initialMapping);
-      }
+      setTableColumns(data || []);
       
     } catch (error) {
       console.error("Error fetching table columns:", error);
@@ -111,10 +90,11 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
   };
   
   // Handle file upload
-  const handleFileUpload = (uploadedFile: File | null) => {
-    setFile(uploadedFile);
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    setFile(selectedFile || null);
     
-    if (!uploadedFile) {
+    if (!selectedFile) {
       setSheetData(null);
       setPreviewData([]);
       return;
@@ -162,11 +142,11 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
         setPreviewData(dataRows.slice(0, 5));
         
         // If a table is already selected, create initial mappings
-        if (selectedTable && availableColumns.length > 0) {
+        if (selectedTable && tableColumns.length > 0) {
           const initialMapping: Record<string, string> = {};
           
           // For each available column in the DB table
-          availableColumns.forEach((dbColumn: string) => {
+          tableColumns.forEach((dbColumn: string) => {
             // Try to find matching column in sheet
             const matchingSheetColumn = headers.find(
               sheetCol => String(sheetCol).toLowerCase() === dbColumn.toLowerCase()
@@ -177,7 +157,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
             }
           });
           
-          setMappedColumns(initialMapping);
+          setMappings(initialMapping);
         }
         
         // Move to mapping tab
@@ -189,20 +169,20 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
       }
     };
     
-    reader.readAsArrayBuffer(uploadedFile);
+    reader.readAsArrayBuffer(selectedFile);
   };
   
   // Handle column mapping changes
-  const updateColumnMapping = (dbColumn: string, sheetColumn: string) => {
-    setMappedColumns(prev => ({
+  const handleMappingChange = (csvField: string, dbField: string) => {
+    setMappings(prev => ({
       ...prev,
-      [dbColumn]: sheetColumn
+      [csvField]: dbField
     }));
   };
   
   // Import data
   const handleImport = async () => {
-    if (!sheetData || !selectedTable || Object.keys(mappedColumns).length === 0) {
+    if (!sheetData || !selectedTable || Object.keys(mappings).length === 0) {
       toast.error("Configuração de importação incompleta");
       return;
     }
@@ -212,7 +192,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
     
     try {
       console.log("Starting import for table:", selectedTable);
-      console.log("Column mappings:", mappedColumns);
+      console.log("Column mappings:", mappings);
       
       let successCount = 0;
       let errorCount = 0;
@@ -232,28 +212,28 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
           const record: Record<string, any> = {};
           
           // Map column values according to the mapping
-          Object.keys(mappedColumns).forEach(dbColumn => {
-            const sheetColumn = mappedColumns[dbColumn];
-            if (sheetColumn) {
+          Object.keys(mappings).forEach(csvField => {
+            const dbField = mappings[csvField];
+            if (dbField) {
               // Handle date format conversions for columns with 'date' in name
-              if (dbColumn.includes('date') && row[sheetColumn] !== undefined) {
+              if (dbField.includes('date') && row[csvField] !== undefined) {
                 // Check if it's an Excel date number
-                if (typeof row[sheetColumn] === 'number') {
-                  const jsDate = excelDateToJsDate(row[sheetColumn]);
-                  record[dbColumn] = formatDateYYYYMMDD(jsDate);
+                if (typeof row[csvField] === 'number') {
+                  const jsDate = excelDateToJsDate(row[csvField]);
+                  record[dbField] = formatDateYYYYMMDD(jsDate);
                 } 
                 // Check if it's a date string in various formats
-                else if (typeof row[sheetColumn] === 'string') {
+                else if (typeof row[csvField] === 'string') {
                   // Try to parse as date
-                  const parsedDate = new Date(row[sheetColumn]);
+                  const parsedDate = new Date(row[csvField]);
                   if (!isNaN(parsedDate.getTime())) {
-                    record[dbColumn] = formatDateYYYYMMDD(parsedDate);
+                    record[dbField] = formatDateYYYYMMDD(parsedDate);
                   } else {
-                    record[dbColumn] = row[sheetColumn];
+                    record[dbField] = row[csvField];
                   }
                 }
               } else {
-                record[dbColumn] = row[sheetColumn];
+                record[dbField] = row[csvField];
               }
             }
           });
@@ -262,10 +242,12 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
         });
         
         // Sanitize data for Supabase
-        const sanitizedRecords = sanitizeDataForSupabase(recordsToInsert);
+        const sanitizedRecords = sanitizeDataForSupabase ? 
+          sanitizeDataForSupabase(recordsToInsert) : 
+          recordsToInsert;
         
         // Insert batch into database
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from(selectedTable)
           .insert(sanitizedRecords);
           
@@ -310,7 +292,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
     setSelectedTable(null);
     setFile(null);
     setSheetData(null);
-    setMappedColumns({});
+    setMappings({});
     setPreviewData([]);
     setImportSuccess(null);
     setErrorMessages([]);
@@ -387,9 +369,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
                 
                 <TabsContent value="upload" className="space-y-4">
                   <FileUploadSection
-                    file={file}
                     onFileUpload={handleFileUpload}
-                    acceptedFormats=".xlsx,.xls,.csv"
                   />
                   
                   <div className="flex justify-between mt-6">
@@ -415,10 +395,13 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
                         <div>
                           <h3 className="text-lg font-medium mb-4">Mapeamento de Campos</h3>
                           <FieldMappingSection
-                            dbColumns={availableColumns}
-                            sheetColumns={Object.keys(sheetData[0])}
-                            mappedColumns={mappedColumns}
-                            onUpdateMapping={updateColumnMapping}
+                            csvHeaders={Object.keys(sheetData[0])}
+                            tableColumns={tableColumns}
+                            mappings={mappings}
+                            onMappingChange={handleMappingChange}
+                            onTableChange={setSelectedTable}
+                            selectedTable={selectedTable}
+                            tables={tables}
                           />
                         </div>
                         
@@ -431,7 +414,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
                                   {Object.keys(sheetData[0]).map((header, index) => (
                                     <TableHead key={index}>
                                       {header}
-                                      {Object.entries(mappedColumns).find(([_, val]) => val === header) && (
+                                      {Object.entries(mappings).find(([csvCol, _]) => csvCol === header) && (
                                         <Badge variant="outline" className="ml-2">
                                           Mapeado
                                         </Badge>
@@ -471,7 +454,7 @@ export function ImportDataTab({ tables }: ImportDataTabProps) {
                           onClick={handleImport}
                           disabled={
                             isLoading || 
-                            Object.keys(mappedColumns).length === 0
+                            Object.keys(mappings).length === 0
                           }
                           className="bg-massage-500 hover:bg-massage-600"
                         >

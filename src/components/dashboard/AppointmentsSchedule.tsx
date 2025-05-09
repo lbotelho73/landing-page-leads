@@ -3,12 +3,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ptBR } from '@/lib/i18n';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR as ptBRLocale } from 'date-fns/locale';
 
 export interface Appointment {
   id: string;
-  time: string; // This now actually contains the date
+  time: string; // Esta propriedade agora contém a data
   clientName: string;
   serviceName: string;
   masseuseeName: string;
@@ -30,6 +30,19 @@ export function AppointmentsSchedule({ appointments, loading }: AppointmentsSche
     } catch (error) {
       console.error('Error formatting date:', error);
       return dateString;
+    }
+  };
+
+  // Format time function - se necessário extrair a hora da data
+  const formatTime = (dateString: string) => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      return format(date, 'HH:mm', { locale: ptBRLocale });
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return '';
     }
   };
 

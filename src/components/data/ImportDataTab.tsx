@@ -15,7 +15,7 @@ import { GoogleAuthGuide } from "./GoogleAuthGuide";
 import * as XLSX from "xlsx";
 import { sanitizeDataForSupabase } from "@/lib/supabase-utils";
 import { BulkDeleteButton } from "./BulkDeleteButton";
-import { asDbTable } from "@/lib/database-types";
+import { asDbTable, DatabaseTablesType } from "@/lib/database-types";
 
 interface ImportDataTabProps {
   tables: Array<{

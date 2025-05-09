@@ -1,3 +1,6 @@
+alert("IMPORT DATA TAB FOI CARREGADO"); // para testes! Pode remover depois.
+console.log("-------IMPORT DATA TAB FOI CARREGADO-------");
+
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from './supabaseClient'; // Ajuste para o caminho do seu supabase client

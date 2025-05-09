@@ -32,9 +32,11 @@ export function BulkDeleteButton({
     try {
       console.log(`Executing bulk delete on table: ${tableName}`);
       
-      // Use the helper function to ensure proper type casting
-      const table = asDbTable(tableName);
-      const deleteQuery = supabase.from(table).delete();
+      // Convert tableName to string to avoid type recursion issues
+      const tableNameStr = String(tableName);
+      const deleteQuery = supabase
+        .from(tableNameStr)
+        .delete();
       
       // Apply custom filter if provided
       let finalQuery = deleteQuery;

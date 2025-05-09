@@ -10,6 +10,9 @@ import { PeriodSelector } from '@/components/dashboard/PeriodSelector';
 import { useDashboardData } from '@/hooks/useDashboardData';
 
 export default function DashboardPage() {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [timeRange, setTimeRange] = useState("day");
+  
   const {
     newCustomers,
     appointments,
@@ -17,11 +20,22 @@ export default function DashboardPage() {
     todayRevenue,
     averageTicket,
     loading,
-    timeRange,
-    setTimeRange
-  } = useDashboardData("day");
+    setTimeRange: updateTimeRange
+  } = useDashboardData(timeRange as any, selectedDate);
 
-  const [date, setDate] = useState<Date>(new Date());
+  const handleDateSelected = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      // When a specific date is selected, automatically switch to daily view
+      setTimeRange("day");
+      updateTimeRange("day");
+    }
+  };
+  
+  const handleTimeRangeChange = (newRange: string) => {
+    setTimeRange(newRange);
+    updateTimeRange(newRange as any);
+  };
 
   return (
     <AppLayout>
@@ -31,8 +45,8 @@ export default function DashboardPage() {
           
           <div>
             <PeriodSelector 
-              value={timeRange} 
-              onChange={setTimeRange}
+              value={timeRange as any} 
+              onChange={handleTimeRangeChange}
             />
           </div>
         </div>
@@ -51,8 +65,8 @@ export default function DashboardPage() {
           />
           
           <DashboardCalendar 
-            initialDate={date}
-            onDateSelected={setDate}
+            initialDate={selectedDate}
+            onDateSelected={handleDateSelected}
           />
         </div>
         

@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from 'date-fns';
-import { ptBR } from '@/lib/i18n';
+import { ptBR } from 'date-fns/locale';
+import { ptBR as ptBRTranslation } from '@/lib/i18n';
 
 interface DashboardCalendarProps {
   initialDate?: Date;
@@ -24,10 +25,11 @@ export function DashboardCalendar({ initialDate, onDateSelected }: DashboardCale
     <Card className="flex flex-col">
       <CardHeader>
         <CardTitle>Calendário</CardTitle>
-        <CardDescription>{ptBR.selectDate}</CardDescription>
+        <CardDescription>{ptBRTranslation.selectDate}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <Calendar
+          locale={ptBR}
           mode="single"
           selected={date}
           onSelect={handleDateSelect}
@@ -38,7 +40,7 @@ export function DashboardCalendar({ initialDate, onDateSelected }: DashboardCale
         />
         {date ? (
           <p>
-            Data selecionada: {format(date, 'PPP')}
+            Data selecionada: {format(date, 'dd/MM/yyyy', { locale: ptBR })}
           </p>
         ) : (
           <p>Por favor, selecione uma data</p>

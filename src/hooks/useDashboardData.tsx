@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDateForSupabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { Appointment } from '@/components/dashboard/AppointmentsSchedule';
@@ -16,7 +16,7 @@ export interface DashboardData {
   loading: boolean;
 }
 
-export function useDashboardData(initialTimeRange: TimeRange = "day") {
+export function useDashboardData(initialTimeRange: TimeRange = "day", selectedDate?: Date) {
   const [timeRange, setTimeRange] = useState<TimeRange>(initialTimeRange);
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     newCustomers: 0,
@@ -27,14 +27,20 @@ export function useDashboardData(initialTimeRange: TimeRange = "day") {
     loading: true
   });
 
-  // Calculate date range based on selected time range
+  // Calculate date range based on selected time range and selectedDate
   const getDateRange = useCallback(() => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Use selectedDate if provided, otherwise use current date
+    const baseDate = selectedDate || new Date();
+    const today = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
     
     let startDate = today;
+    let endDate = new Date(today);
     
-    if (timeRange === 'week') {
+    if (timeRange === 'day') {
+      // For day, use just the selected date
+      startDate = today;
+      endDate = today;
+    } else if (timeRange === 'week') {
       // Get start of the current week (Sunday)
       const day = today.getDay();
       startDate = new Date(today);
@@ -42,18 +48,23 @@ export function useDashboardData(initialTimeRange: TimeRange = "day") {
     } else if (timeRange === 'month') {
       // Get start of the current month
       startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      // Set end date to last day of month
+      endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     } else if (timeRange === 'year') {
       // Get start of the current year
       startDate = new Date(today.getFullYear(), 0, 1);
+      // Set end date to last day of year
+      endDate = new Date(today.getFullYear(), 11, 31);
     } else if (timeRange === 'all') {
       // Use a very old date to get all data
       startDate = new Date(2000, 0, 1);
+      endDate = new Date(2099, 11, 31);
     }
     
-    return { from: startDate, to: new Date() };
-  }, [timeRange]);
+    return { from: startDate, to: endDate };
+  }, [timeRange, selectedDate]);
 
-  const fetchNewCustomers = async () => {
+  const fetchNewCustomers = useCallback(async () => {
     try {
       const dateRange = getDateRange();
       const formattedStartDate = formatDateForSupabase(dateRange.from);
@@ -71,13 +82,15 @@ export function useDashboardData(initialTimeRange: TimeRange = "day") {
       console.error('Erro ao buscar novos clientes:', error);
       return 0;
     }
-  };
+  }, [getDateRange]);
 
   const fetchAppointments = useCallback(async () => {
     try {
       const dateRange = getDateRange();
       const formattedStartDate = formatDateForSupabase(dateRange.from);
       const formattedEndDate = formatDateForSupabase(dateRange.to);
+      
+      console.log('Fetching appointments from', formattedStartDate, 'to', formattedEndDate);
       
       // Fix: Use explicit foreign key names to avoid ambiguity
       const { data, error } = await supabase
@@ -102,13 +115,13 @@ export function useDashboardData(initialTimeRange: TimeRange = "day") {
             last_name
           )
         `)
-        .gte('date', formattedStartDate.split('T')[0])
-        .lte('date', formattedEndDate.split('T')[0])
+        .gte('date', formattedStartDate)
+        .lte('date', formattedEndDate)
         .order('date', { ascending: false })
         .order('time');
         
       if (error) throw error;
-      console.log("Appointments fetched:", data);
+      console.log("Appointments fetched:", data?.length || 0, "appointments");
       return data || [];
     } catch (error) {
       console.error('Error fetching appointments:', error);
@@ -117,25 +130,30 @@ export function useDashboardData(initialTimeRange: TimeRange = "day") {
     }
   }, [getDateRange]);
 
-  const fetchRevenueData = async () => {
+  const fetchRevenueData = useCallback(async () => {
     try {
       const dateRange = getDateRange();
       const formattedStartDate = formatDateForSupabase(dateRange.from);
       const formattedEndDate = formatDateForSupabase(dateRange.to);
       
+      console.log('Fetching revenue data from', formattedStartDate, 'to', formattedEndDate);
+      
       // Get completed appointments with final price
       const { data, error } = await supabase
         .from('appointments')
-        .select('final_price')
-        .gte('date', formattedStartDate.split('T')[0])
-        .lte('date', formattedEndDate.split('T')[0])
+        .select('final_price, is_completed')
+        .gte('date', formattedStartDate)
+        .lte('date', formattedEndDate)
         .eq('is_completed', true);
         
       if (error) throw error;
       
+      console.log("Revenue data fetched:", data?.length || 0, "completed appointments");
+      
       // Calculate total revenue
       const totalRevenue = (data || []).reduce((sum, appointment) => {
-        return sum + Number(appointment.final_price || 0);
+        const price = Number(appointment.final_price || 0);
+        return sum + price;
       }, 0);
       
       // Calculate average ticket
@@ -148,7 +166,7 @@ export function useDashboardData(initialTimeRange: TimeRange = "day") {
       console.error('Error fetching revenue data:', error);
       return { totalRevenue: 0, avgTicket: 0 };
     }
-  };
+  }, [getDateRange]);
 
   // Process appointments into schedule format
   const processScheduleData = useCallback((appointments: any[]) => {
@@ -173,7 +191,7 @@ export function useDashboardData(initialTimeRange: TimeRange = "day") {
           
         return {
           id: apt.id,
-          time: apt.time,
+          time: apt.date, // Changed from apt.time to apt.date to display date instead of time
           clientName: customerName,
           serviceName: serviceName,
           masseuseeName: professionalName
@@ -207,12 +225,12 @@ export function useDashboardData(initialTimeRange: TimeRange = "day") {
       toast.error('Falha ao carregar dados do dashboard');
       setDashboardData(prev => ({ ...prev, loading: false }));
     }
-  }, [fetchAppointments, processScheduleData]);
+  }, [fetchAppointments, fetchNewCustomers, fetchRevenueData, processScheduleData]);
 
-  // Effect to load data when timeRange changes
+  // Effect to load data when timeRange or selectedDate changes
   useEffect(() => {
     fetchData();
-  }, [timeRange, fetchData]);
+  }, [timeRange, selectedDate, fetchData]);
 
   return {
     ...dashboardData,

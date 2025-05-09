@@ -3,10 +3,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ptBR } from '@/lib/i18n';
+import { format } from 'date-fns';
 
 export interface Appointment {
   id: string;
-  time: string;
+  time: string; // This now actually contains the date
   clientName: string;
   serviceName: string;
   masseuseeName: string;
@@ -18,6 +19,19 @@ interface AppointmentsScheduleProps {
 }
 
 export function AppointmentsSchedule({ appointments, loading }: AppointmentsScheduleProps) {
+  // Format date function
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      return date ? format(date, 'dd/MM/yyyy') : dateString;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
+    }
+  };
+
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
@@ -32,7 +46,7 @@ export function AppointmentsSchedule({ appointments, loading }: AppointmentsSche
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{ptBR.time}</TableHead>
+                  <TableHead>Data</TableHead>
                   <TableHead>{ptBR.client}</TableHead>
                   <TableHead>{ptBR.services}</TableHead>
                   <TableHead>{ptBR.professional}</TableHead>
@@ -42,7 +56,7 @@ export function AppointmentsSchedule({ appointments, loading }: AppointmentsSche
                 {appointments.length > 0 ? (
                   appointments.map((appointment) => (
                     <TableRow key={appointment.id}>
-                      <TableCell>{appointment.time}</TableCell>
+                      <TableCell>{formatDate(appointment.time)}</TableCell>
                       <TableCell className="font-medium">{appointment.clientName}</TableCell>
                       <TableCell>{appointment.serviceName}</TableCell>
                       <TableCell>{appointment.masseuseeName}</TableCell>

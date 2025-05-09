@@ -32,11 +32,13 @@ export function UserPermissions() {
   
   const fetchUsers = async () => {
     try {
+      console.log("Fetching users...");
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*');
       
       if (error) throw error;
+      console.log("Users fetched:", data);
       setUsers(data || []);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -46,6 +48,7 @@ export function UserPermissions() {
   
   const fetchPermissions = async () => {
     try {
+      console.log("Fetching permissions...");
       // Fetch permissions from the database
       const { data: permissionsData, error: permissionsError } = await supabase
         .from('permissions')
@@ -55,6 +58,7 @@ export function UserPermissions() {
       if (permissionsError) throw permissionsError;
       
       setPermissions(permissionsData || []);
+      console.log("Permissions fetched:", permissionsData);
       
       // Fetch role permissions
       const { data: rolePermData, error: rolePermError } = await supabase
@@ -62,6 +66,7 @@ export function UserPermissions() {
         .select('*');
       
       if (rolePermError) throw rolePermError;
+      console.log("Role permissions fetched:", rolePermData);
       
       // Structure role permissions
       const adminPerms: string[] = [];
@@ -75,6 +80,12 @@ export function UserPermissions() {
       });
       
       setRolePermissions({
+        admin: adminPerms,
+        editor: editorPerms,
+        viewer: viewerPerms
+      });
+      
+      console.log("Structured role permissions:", {
         admin: adminPerms,
         editor: editorPerms,
         viewer: viewerPerms
@@ -143,13 +154,18 @@ export function UserPermissions() {
   const savePermissions = async () => {
     setSavingPermissions(true);
     try {
+      console.log("Saving permissions:", rolePermissions);
+      
       // First, delete existing role permissions
       const { error: deleteError } = await supabase
         .from('role_permissions')
         .delete()
         .in('role', ['admin', 'editor', 'viewer']);
       
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error("Error deleting existing permissions:", deleteError);
+        throw deleteError;
+      }
       
       // Then insert new permissions for each role
       const rolesToInsert = [];
@@ -169,12 +185,20 @@ export function UserPermissions() {
         rolesToInsert.push({ role: 'viewer', permission_id: permId });
       }
       
+      console.log("Inserting role permissions:", rolesToInsert);
+      
       if (rolesToInsert.length > 0) {
-        const { error: insertError } = await supabase
+        const { data, error: insertError } = await supabase
           .from('role_permissions')
-          .insert(rolesToInsert);
+          .insert(rolesToInsert)
+          .select();
         
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error("Error inserting permissions:", insertError);
+          throw insertError;
+        }
+        
+        console.log("Inserted permissions:", data);
       }
       
       toast.success("Permissões salvas com sucesso");

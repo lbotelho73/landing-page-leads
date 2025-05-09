@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUp, FileDown } from "lucide-react";
@@ -9,7 +9,6 @@ import { ImportDataTab } from "@/components/data/ImportDataTab";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { checkAndInitializeTable } from "@/lib/database-helpers";
-import { useEffect } from "react";
 
 export default function DataPage() {
   const [activeTab, setActiveTab] = useState("export");

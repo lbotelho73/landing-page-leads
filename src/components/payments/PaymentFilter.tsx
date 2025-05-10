@@ -91,7 +91,7 @@ export function PaymentFilter({ onDateRangeChange, onStatusChange, dateRange, st
             <div className="mt-2">
               <DateRangePicker 
                 value={dateRange ? { from: dateRange.from, to: dateRange.to } : undefined}
-                onValueChange={onDateRangeChange}
+                onChange={onDateRangeChange}
               />
             </div>
           )}

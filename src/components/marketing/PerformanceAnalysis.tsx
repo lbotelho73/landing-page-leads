@@ -1,13 +1,11 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from 'date-fns';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRangePicker, DateRange } from '@/components/ui/date-range-picker';
 import { formatCurrency } from '@/lib/format';
-import { DateRange } from 'react-day-picker';
 
 interface ChannelData {
   channel_name: string;
@@ -185,7 +183,7 @@ export function PerformanceAnalysis() {
         <CardContent>
           <DateRangePicker 
             value={dateRange} 
-            onValueChange={setDateRange} 
+            onChange={setDateRange} 
           />
         </CardContent>
       </Card>

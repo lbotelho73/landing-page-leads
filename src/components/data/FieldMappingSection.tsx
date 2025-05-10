@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { asDbTable } from "@/lib/database-types";
 import { Loader2 } from "lucide-react";
 
 interface FieldMappingProps {
@@ -22,6 +21,7 @@ interface FieldMappingProps {
   onTableChange: (table: string) => void;
   selectedTable: string | null;
   tables: { id: string; name: string }[];
+  fileUploaded?: boolean;
 }
 
 export function FieldMappingSection({
@@ -31,7 +31,8 @@ export function FieldMappingSection({
   onMappingChange,
   onTableChange,
   selectedTable,
-  tables
+  tables,
+  fileUploaded = false
 }: FieldMappingProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredHeaders, setFilteredHeaders] = useState<string[]>(csvHeaders);
@@ -161,17 +162,19 @@ export function FieldMappingSection({
             </Select>
           </div>
           
-          <div>
-            <Label htmlFor="search-field">Buscar campos</Label>
-            <Input
-              id="search-field"
-              type="text"
-              placeholder="Filtrar campos CSV..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="mb-4"
-            />
-          </div>
+          {(fileUploaded && filteredHeaders.length > 0) && (
+            <div>
+              <Label htmlFor="search-field">Buscar campos</Label>
+              <Input
+                id="search-field"
+                type="text"
+                placeholder="Filtrar campos CSV..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mb-4"
+              />
+            </div>
+          )}
         </div>
         
         {loading ? (
@@ -181,11 +184,17 @@ export function FieldMappingSection({
           </div>
         ) : (
           <div className="space-y-4 max-h-[400px] overflow-y-auto">
-            {availableColumns.length === 0 ? (
+            {!selectedTable ? (
               <div className="text-center text-muted-foreground py-4">
-                {selectedTable 
-                  ? "Nenhuma coluna encontrada para esta tabela" 
-                  : "Selecione uma tabela para ver as colunas disponíveis"}
+                Selecione uma tabela para ver as colunas disponíveis
+              </div>
+            ) : availableColumns.length === 0 ? (
+              <div className="text-center text-muted-foreground py-4">
+                Nenhuma coluna encontrada para esta tabela
+              </div>
+            ) : !fileUploaded ? (
+              <div className="text-center text-muted-foreground py-4">
+                Faça o upload do arquivo para mapear campos
               </div>
             ) : filteredHeaders.length === 0 ? (
               <div className="text-center text-muted-foreground py-4">

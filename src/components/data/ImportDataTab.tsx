@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +36,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
     failed: number;
     errors: string[];
   } | null>(null);
+  const [fileUploaded, setFileUploaded] = useState<boolean>(false);
 
   // Fetch table columns from Supabase when a table is selected
   const fetchTableColumns = async (tableName: string) => {
@@ -44,7 +44,9 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
       setLoading(true);
       console.log(`Fetching columns for table: ${tableName}`);
       
-      const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
+      const { data, error } = await supabase.rpc('get_table_columns', { 
+        table_name: tableName 
+      });
       
       if (error) throw error;
 
@@ -135,6 +137,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
         setSheetData(dataRows);
         setPreviewData(dataRows.slice(0, 5));
         setActiveTab('mapping');
+        setFileUploaded(true);
         toast.success(`Arquivo carregado com ${dataRows.length} registros`);
       } catch (error: any) {
         console.error("Erro ao processar arquivo:", error);
@@ -198,6 +201,27 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
       console.error(`Error in findEntityIdByName for ${tableName}:`, error);
       return null;
     }
+  };
+
+  // Clean numeric values
+  const cleanNumericValue = (value: any): number | null => {
+    if (value === null || value === undefined || value === '') return null;
+    
+    if (typeof value === 'number') return value;
+    
+    if (typeof value === 'string') {
+      // Remove any non-numeric characters except for decimal point
+      // Also handle cases like "60 minutos" by extracting just the number
+      const numericPart = value.match(/(\d+([,.]\d+)?)/);
+      if (numericPart && numericPart[0]) {
+        // Replace comma with dot for decimal parsing
+        const cleanedValue = numericPart[0].replace(',', '.');
+        const parsedValue = parseFloat(cleanedValue);
+        return isNaN(parsedValue) ? null : parsedValue;
+      }
+    }
+    
+    return null;
   };
 
   // Convert Excel data types to appropriate DB types
@@ -273,13 +297,13 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
             preparedItem[dbField] = isTrue;
           }
           // Handle numeric fields
-          else if (!isNaN(Number(value)) && (
+          else if (
                dbField.toLowerCase().includes('price') 
             || dbField.toLowerCase().includes('percentage') 
             || dbField.toLowerCase().includes('amount')
             || dbField.toLowerCase().includes('duration')
-          )) {
-            preparedItem[dbField] = Number(value);
+          ) {
+            preparedItem[dbField] = cleanNumericValue(value);
           } 
           // Default: keep as is (usually string)
           else {
@@ -297,13 +321,13 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
             preparedItem[dbField] = isTrue;
           }
           // Handle numeric fields
-          else if (!isNaN(Number(value)) && (
+          else if (
                dbField.toLowerCase().includes('price') 
             || dbField.toLowerCase().includes('percentage') 
             || dbField.toLowerCase().includes('amount')
             || dbField.toLowerCase().includes('duration')
-          )) {
-            preparedItem[dbField] = Number(value);
+          ) {
+            preparedItem[dbField] = cleanNumericValue(value);
           } 
           // Default: keep as is (usually string)
           else {
@@ -424,6 +448,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
                   onTableChange={setSelectedTable}
                   selectedTable={selectedTable}
                   tables={tables}
+                  fileUploaded={fileUploaded}
                 />
               </div>
             </CardContent>

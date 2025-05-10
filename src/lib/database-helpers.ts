@@ -155,3 +155,32 @@ export async function getTableColumns(tableName: DatabaseTablesType): Promise<st
     return [];
   }
 }
+
+/**
+ * Synchronizes auth users with the user_profiles table
+ */
+export async function syncAuthUsersToProfiles(): Promise<{ success: boolean; message: string; }> {
+  try {
+    // This will call a Supabase RPC function that we'll create
+    const { error } = await supabase.rpc("sync_users_to_profiles");
+    
+    if (error) {
+      console.error("Error syncing auth users to profiles:", error);
+      return { 
+        success: false, 
+        message: `Erro ao sincronizar usuários: ${error.message}` 
+      };
+    }
+    
+    return {
+      success: true,
+      message: "Usuários sincronizados com sucesso!"
+    };
+  } catch (error: any) {
+    console.error("Error in syncAuthUsersToProfiles:", error);
+    return { 
+      success: false, 
+      message: `Erro ao sincronizar usuários: ${error.message || String(error)}` 
+    };
+  }
+}

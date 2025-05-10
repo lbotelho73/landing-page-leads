@@ -38,7 +38,9 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Shield } from "lucide-react";
+import { AlertCircle, Shield, RefreshCw } from "lucide-react";
+import { syncAuthUsersToProfiles } from "@/lib/database-helpers";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function UserPermissions() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -53,6 +55,8 @@ export function UserPermissions() {
   const [selectedRole, setSelectedRole] = useState<UserProfileRole | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [savingPermissions, setSavingPermissions] = useState(false);
+  const [syncingUsers, setSyncingUsers] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -203,10 +207,12 @@ export function UserPermissions() {
     setSavingPermissions(true);
     try {
       // Delete existing role permissions
-      await supabase
+      const { error: deleteError } = await supabase
         .from("role_permissions")
         .delete()
         .eq("role", selectedRole);
+        
+      if (deleteError) throw deleteError;
       
       // Create new role permissions
       if (selectedPermissions.length > 0) {
@@ -229,12 +235,37 @@ export function UserPermissions() {
       }));
       
       toast.success("Permissões do perfil atualizadas com sucesso");
+      setSelectedRole(null);
     } catch (error) {
       console.error("Error saving role permissions:", error);
       toast.error("Falha ao salvar permissões do perfil");
     } finally {
       setSavingPermissions(false);
-      setSelectedRole(null);
+    }
+  };
+
+  const handleSyncUsers = async () => {
+    setSyncingUsers(true);
+    setSyncError(null);
+    
+    try {
+      const result = await syncAuthUsersToProfiles();
+      
+      if (result.success) {
+        toast.success(result.message);
+        // Refresh the user list
+        fetchUsers();
+      } else {
+        setSyncError(result.message);
+        toast.error(result.message);
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || "Erro ao sincronizar usuários";
+      setSyncError(errorMessage);
+      toast.error(errorMessage);
+      console.error("Error syncing users:", error);
+    } finally {
+      setSyncingUsers(false);
     }
   };
 
@@ -250,13 +281,33 @@ export function UserPermissions() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>Gerenciamento de Permissões</CardTitle>
-          <CardDescription>
-            Gerencie as permissões de acesso dos usuários
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Gerenciamento de Permissões</CardTitle>
+            <CardDescription>
+              Gerencie as permissões de acesso dos usuários
+            </CardDescription>
+          </div>
+          <Button 
+            onClick={handleSyncUsers}
+            variant="outline"
+            className="flex items-center"
+            disabled={syncingUsers}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${syncingUsers ? 'animate-spin' : ''}`} />
+            {syncingUsers ? 'Sincronizando...' : 'Sincronizar Usuários'}
+          </Button>
         </CardHeader>
         <CardContent>
+          {syncError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {syncError}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {loading ? (
             <div className="text-center py-4">Carregando usuários...</div>
           ) : users.length === 0 ? (

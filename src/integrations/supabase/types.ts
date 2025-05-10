@@ -617,7 +617,9 @@ export type Database = {
       }
       get_table_columns: {
         Args: { table_name: string }
-        Returns: string[]
+        Returns: {
+          column_name: string
+        }[]
       }
     }
     Enums: {

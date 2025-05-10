@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Select,
@@ -45,12 +46,24 @@ export function FieldMappingSection({
       try {
         const { data, error } = await supabase.rpc('get_table_columns', { table_name: selectedTable });
         if (error) {
+          console.error("Error fetching columns:", error);
           return;
         }
         if (data && Array.isArray(data)) {
-          setAvailableColumns(data);
+          // Ensure all column names are strings
+          const columnNames = data.map(col => {
+            if (typeof col === 'object' && col !== null && 'column_name' in col) {
+              return String(col.column_name);
+            }
+            return String(col);
+          }).filter(Boolean);
+          setAvailableColumns(columnNames);
         }
-      } catch { } finally { setLoading(false); }
+      } catch (error) { 
+        console.error("Error in fetch:", error);
+      } finally { 
+        setLoading(false); 
+      }
     };
     fetchTableColumns();
   }, [selectedTable]);
@@ -58,7 +71,7 @@ export function FieldMappingSection({
   useEffect(() => {
     if (searchTerm) {
       const filtered = csvHeaders.filter(header => 
-        header.toLowerCase().includes(searchTerm.toLowerCase())
+        header && typeof header === 'string' && header.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredHeaders(filtered);
     } else {
@@ -67,18 +80,28 @@ export function FieldMappingSection({
   }, [searchTerm, csvHeaders]);
   
   const guessMatchingColumn = (csvHeader: string): string => {
+    if (!csvHeader || typeof csvHeader !== 'string') return "";
+    
     const normalized = csvHeader.toLowerCase().replace(/[_\s]/g, '');
+    
+    // Try exact match first
     let match = availableColumns.find(
-      col => col.toLowerCase() === csvHeader.toLowerCase()
+      col => typeof col === 'string' && col.toLowerCase() === csvHeader.toLowerCase()
     );
     if (match) return match;
+    
+    // Try normalized match
     match = availableColumns.find(
-      col => col.toLowerCase().replace(/[_\s]/g, '') === normalized
+      col => typeof col === 'string' && col.toLowerCase().replace(/[_\s]/g, '') === normalized
     );
     if (match) return match;
+    
+    // Try partial match
     match = availableColumns.find(
-      col => col.toLowerCase().includes(normalized) || normalized.includes(col.toLowerCase())
+      col => typeof col === 'string' && 
+        (col.toLowerCase().includes(normalized) || normalized.includes(col.toLowerCase()))
     );
+    
     return match || "";
   };
   
@@ -86,10 +109,12 @@ export function FieldMappingSection({
     if (csvHeaders.length > 0 && availableColumns.length > 0) {
       const initialMappings: Record<string, string> = {};
       csvHeaders.forEach(header => {
-        const guess = guessMatchingColumn(header);
-        if (guess) {
-          initialMappings[header] = guess;
-          onMappingChange(header, guess);
+        if (header && typeof header === 'string') {
+          const guess = guessMatchingColumn(header);
+          if (guess) {
+            initialMappings[header] = guess;
+            onMappingChange(header, guess);
+          }
         }
       });
     }
@@ -138,27 +163,29 @@ export function FieldMappingSection({
                 Nenhum campo encontrado
               </div>
             ) : (
-              filteredHeaders.map((header) => (
-                <div key={header} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                  <div className="font-medium truncate">{header}</div>
-                  <div className="col-span-2">
-                    <Select 
-                      value={mappings[header] || ''} 
-                      onValueChange={(value) => onMappingChange(header, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecionar coluna" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Ignorar este campo</SelectItem>
-                        {availableColumns.map((column) => (
-                          <SelectItem key={column} value={column}>{column}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              filteredHeaders.map((header, index) => (
+                header && typeof header === 'string' ? (
+                  <div key={`${header}-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div className="font-medium truncate">{header}</div>
+                    <div className="col-span-2">
+                      <Select 
+                        value={mappings[header] || ''} 
+                        onValueChange={(value) => onMappingChange(header, value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar coluna" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Ignorar este campo</SelectItem>
+                          {availableColumns.map((column, idx) => (
+                            <SelectItem key={`${column}-${idx}`} value={column}>{column}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </div>
-              ))
+                ) : null
+              )).filter(Boolean)
             )}
           </div>
         )}

@@ -57,6 +57,7 @@ export function UserPermissions() {
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [syncingUsers, setSyncingUsers] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -80,6 +81,7 @@ export function UserPermissions() {
         role: profile.role as UserProfileRole
       }));
 
+      console.log("Fetched user profiles:", typedProfiles);
       setUsers(typedProfiles);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -98,6 +100,7 @@ export function UserPermissions() {
 
       if (error) throw error;
       
+      console.log("Fetched permissions:", data);
       setPermissions(data || []);
     } catch (error) {
       console.error("Error fetching permissions:", error);
@@ -120,13 +123,16 @@ export function UserPermissions() {
         viewer: []
       };
       
-      data.forEach(rp => {
-        const role = rp.role as UserProfileRole;
-        if (grouped[role]) {
-          grouped[role].push(rp.permission_id);
-        }
-      });
+      if (data) {
+        data.forEach(rp => {
+          const role = rp.role as UserProfileRole;
+          if (grouped[role]) {
+            grouped[role].push(rp.permission_id);
+          }
+        });
+      }
       
+      console.log("Fetched role permissions:", grouped);
       setRolePermissions(grouped);
     } catch (error) {
       console.error("Error fetching role permissions:", error);
@@ -137,6 +143,8 @@ export function UserPermissions() {
   const handleRoleChange = async (userId: string, newRole: UserProfileRole) => {
     setSaving(userId);
     try {
+      console.log(`Updating role for user ${userId} to ${newRole}`);
+      
       // Update the role in the database
       const { error } = await supabase
         .from("user_profiles")
@@ -191,6 +199,7 @@ export function UserPermissions() {
   const handleRolePermissionsOpen = (role: UserProfileRole) => {
     setSelectedRole(role);
     setSelectedPermissions(rolePermissions[role] || []);
+    setDialogOpen(true);
   };
 
   const handlePermissionToggle = (permissionId: string) => {
@@ -206,13 +215,18 @@ export function UserPermissions() {
     
     setSavingPermissions(true);
     try {
+      console.log(`Saving permissions for role ${selectedRole}:`, selectedPermissions);
+      
       // Delete existing role permissions
       const { error: deleteError } = await supabase
         .from("role_permissions")
         .delete()
         .eq("role", selectedRole);
         
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error("Error deleting existing role permissions:", deleteError);
+        throw deleteError;
+      }
       
       // Create new role permissions
       if (selectedPermissions.length > 0) {
@@ -221,11 +235,16 @@ export function UserPermissions() {
           permission_id: permissionId
         }));
         
+        console.log("Inserting new role permissions:", newPermissions);
+        
         const { error } = await supabase
           .from("role_permissions")
           .insert(newPermissions);
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error inserting role permissions:", error);
+          throw error;
+        }
       }
       
       // Update local state
@@ -235,10 +254,10 @@ export function UserPermissions() {
       }));
       
       toast.success("Permissões do perfil atualizadas com sucesso");
-      setSelectedRole(null);
-    } catch (error) {
+      setDialogOpen(false);
+    } catch (error: any) {
       console.error("Error saving role permissions:", error);
-      toast.error("Falha ao salvar permissões do perfil");
+      toast.error(`Falha ao salvar permissões do perfil: ${error.message || String(error)}`);
     } finally {
       setSavingPermissions(false);
     }
@@ -249,7 +268,9 @@ export function UserPermissions() {
     setSyncError(null);
     
     try {
+      console.log("Starting user synchronization...");
       const result = await syncAuthUsersToProfiles();
+      console.log("Sync result:", result);
       
       if (result.success) {
         toast.success(result.message);
@@ -312,7 +333,7 @@ export function UserPermissions() {
             <div className="text-center py-4">Carregando usuários...</div>
           ) : users.length === 0 ? (
             <div className="text-center py-4 text-muted-foreground">
-              Nenhum usuário encontrado
+              Nenhum usuário encontrado. Clique em "Sincronizar Usuários" para importar usuários do sistema de autenticação.
             </div>
           ) : (
             <Table>
@@ -390,74 +411,74 @@ export function UserPermissions() {
                   </p>
                 </CardContent>
                 <CardFooter className="pt-0">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => handleRolePermissionsOpen(role)}
-                      >
-                        <Shield className="mr-2 h-4 w-4" />
-                        Configurar Permissões
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle>Permissões para {formatRoleName(role)}</DialogTitle>
-                        <DialogDescription>
-                          Selecione as permissões para este perfil de usuário
-                        </DialogDescription>
-                      </DialogHeader>
-                      
-                      <div className="max-h-[300px] overflow-y-auto py-4">
-                        {permissions.length === 0 ? (
-                          <div className="text-center py-4 text-muted-foreground">
-                            Nenhuma permissão disponível
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {permissions.map(permission => (
-                              <div key={permission.id} className="flex items-start space-x-3">
-                                <Checkbox 
-                                  id={`permission-${permission.id}`}
-                                  checked={selectedPermissions.includes(permission.id)}
-                                  onCheckedChange={() => handlePermissionToggle(permission.id)}
-                                />
-                                <div>
-                                  <Label 
-                                    htmlFor={`permission-${permission.id}`}
-                                    className="font-medium cursor-pointer"
-                                  >
-                                    {permission.name}
-                                  </Label>
-                                  {permission.description && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {permission.description}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <DialogFooter>
-                        <Button 
-                          onClick={saveRolePermissions} 
-                          disabled={savingPermissions || !selectedRole}
-                        >
-                          {savingPermissions ? "Salvando..." : "Salvar Permissões"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => handleRolePermissionsOpen(role)}
+                  >
+                    <Shield className="mr-2 h-4 w-4" />
+                    Configurar Permissões
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
           </div>
         </CardContent>
       </Card>
+      
+      {/* Role permissions dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Permissões para {selectedRole ? formatRoleName(selectedRole) : ''}</DialogTitle>
+            <DialogDescription>
+              Selecione as permissões para este perfil de usuário
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="max-h-[300px] overflow-y-auto py-4">
+            {permissions.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                Nenhuma permissão disponível
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {permissions.map(permission => (
+                  <div key={permission.id} className="flex items-start space-x-3">
+                    <Checkbox 
+                      id={`permission-${permission.id}`}
+                      checked={selectedPermissions.includes(permission.id)}
+                      onCheckedChange={() => handlePermissionToggle(permission.id)}
+                    />
+                    <div>
+                      <Label 
+                        htmlFor={`permission-${permission.id}`}
+                        className="font-medium cursor-pointer"
+                      >
+                        {permission.name}
+                      </Label>
+                      {permission.description && (
+                        <p className="text-sm text-muted-foreground">
+                          {permission.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              onClick={saveRolePermissions} 
+              disabled={savingPermissions || !selectedRole}
+            >
+              {savingPermissions ? "Salvando..." : "Salvar Permissões"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -203,7 +203,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
     }
   };
 
-  // Clean numeric values
+  // Clean numeric values - Enhanced to handle "60 minutos" type strings
   const cleanNumericValue = (value: any): number | null => {
     if (value === null || value === undefined || value === '') return null;
     
@@ -221,6 +221,43 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
       }
     }
     
+    return null;
+  };
+
+  // Format time values from various formats to HH:MM:SS
+  const formatTimeValue = (value: any): string | null => {
+    if (!value) return null;
+    
+    // If already in time format HH:MM:SS
+    if (typeof value === 'string' && /^\d{1,2}:\d{2}(:\d{2})?$/.test(value)) {
+      // Ensure it has seconds if not present
+      if (!value.includes(':', value.indexOf(':') + 1)) {
+        return value + ':00';
+      }
+      return value;
+    }
+    
+    // Handle Excel time values (decimal fraction of day)
+    if (typeof value === 'number') {
+      const totalSeconds = Math.round(value * 24 * 60 * 60);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    // Try to extract time from string like "10:30 AM" or other formats
+    try {
+      const date = new Date(`2000-01-01T${value}`);
+      if (!isNaN(date.getTime())) {
+        return date.toTimeString().split(' ')[0];
+      }
+    } catch (error) {
+      console.log(`Could not parse time from: ${value}`);
+    }
+    
+    // Default fallback - return null for invalid time
     return null;
   };
 
@@ -287,6 +324,17 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
               continue;
             }
           }
+          // Handle time field explicitly
+          else if (dbField === 'time') {
+            const formattedTime = formatTimeValue(value);
+            if (formattedTime) {
+              preparedItem[dbField] = formattedTime;
+            } else {
+              console.warn(`Invalid time value: ${value}`);
+              // Since time is NOT NULL, we must have a value - use a default
+              preparedItem[dbField] = '00:00:00';
+            }
+          }
           // Handle date fields - detect by column name
           else if (dbField.toLowerCase().includes('date')) {
             preparedItem[dbField] = parseAndFormatDate(value);
@@ -311,8 +359,18 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
           }
         } else {
           // For other tables, use standard type conversion
+          // Handle time fields
+          if (dbField === 'time') {
+            const formattedTime = formatTimeValue(value);
+            if (formattedTime) {
+              preparedItem[dbField] = formattedTime;
+            } else {
+              console.warn(`Invalid time value: ${value} for field ${dbField}`);
+              continue;
+            }
+          }
           // Handle date fields
-          if (dbField.toLowerCase().includes('date')) {
+          else if (dbField.toLowerCase().includes('date')) {
             preparedItem[dbField] = parseAndFormatDate(value);
           } 
           // Handle boolean fields

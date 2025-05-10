@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUp, FileDown } from "lucide-react";
 import ptBR from "@/lib/i18n";
 import { ExportDataTab } from "@/components/data/ExportDataTab";
-import ImportDataTab from "@/components/data/ImportDataTab";
+import { ImportDataTab } from "@/components/data/ImportDataTab";
 import { AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { checkAndInitializeTable } from "@/lib/database-helpers";

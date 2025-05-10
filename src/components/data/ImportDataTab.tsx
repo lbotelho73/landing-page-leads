@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, ChangeEvent } from "react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { asDbTable } from "@/lib/database-types";
 
 interface TableColumn {
   name: string;
@@ -85,20 +86,9 @@ export function ImportDataTab() {
   useEffect(() => {
     const fetchTables = async () => {
       try {
-        const { data, error } = await supabase.rpc("get_table_existence", {
-          table_name: "customers",
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        if (data) {
-          // If we can verify table existence, add the tables we support
-          setTables(["customers", "professionals", "services"]);
-        } else {
-          console.error("Error checking table existence");
-        }
+        // Since get_table_existence doesn't exist in the function list, 
+        // we'll directly set the supported tables
+        setTables(["customers", "professionals", "services"]);
       } catch (error) {
         console.error("Error fetching tables:", error);
         toast.error("Erro ao buscar tabelas");
@@ -226,10 +216,10 @@ export function ImportDataTab() {
       const requiredColumns = getRequiredColumns(tableName);
       
       // Create table columns with required flags
-      const tableColumns = columns.map((col) => ({
-        name: col,
-        required: requiredColumns.includes(col),
-        type: getColumnType(tableName, col),
+      const tableColumns: TableColumn[] = columns.map((col: {column_name: string}) => ({
+        name: col.column_name,
+        required: requiredColumns.includes(col.column_name),
+        type: getColumnType(tableName, col.column_name),
       }));
 
       setImportState((prev) => ({
@@ -375,8 +365,9 @@ export function ImportDataTab() {
       }
 
       // Import data to Supabase
+      // Use asDbTable to ensure type safety
       const { data, error } = await supabase
-        .from(importState.selectedTable)
+        .from(asDbTable(importState.selectedTable))
         .insert(dataToImport)
         .select();
 
@@ -412,7 +403,7 @@ export function ImportDataTab() {
     if (editedItem && importState.selectedTable) {
       try {
         const { error } = await supabase
-          .from(importState.selectedTable)
+          .from(asDbTable(importState.selectedTable))
           .update(editedItem)
           .eq("id", editedItem.id);
 
@@ -445,7 +436,7 @@ export function ImportDataTab() {
     if (window.confirm("Tem certeza que deseja excluir este item?")) {
       try {
         const { error } = await supabase
-          .from(importState.selectedTable)
+          .from(asDbTable(importState.selectedTable))
           .delete()
           .eq("id", id);
 
@@ -502,6 +493,13 @@ export function ImportDataTab() {
     });
   };
 
+  // Adapter for FileUploadSection
+  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileUpload(e.target.files[0]);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <Card className="flex-1">
@@ -532,7 +530,7 @@ export function ImportDataTab() {
           {/* File upload section */}
           <FileUploadSection
             selectedFile={importState.file}
-            onFileUpload={handleFileUpload}
+            onFileUpload={handleFileInputChange}
             isLoading={isLoading}
           />
 

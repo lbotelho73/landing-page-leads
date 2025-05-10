@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ptBR from "@/lib/i18n";
+import { UserPermissions } from "@/components/settings/UserPermissions";
 
 interface PaymentMethod {
   id: string;
@@ -40,28 +41,6 @@ interface WorkingDay {
   is_working: boolean;
   start_time: string;
   end_time: string;
-}
-
-interface UserRole {
-  id: string;
-  name: string;
-  description: string;
-}
-
-interface UserProfile {
-  id: string;
-  email: string;
-  role: string;
-  created_at: string;
-}
-
-interface Permission {
-  id: string;
-  name: string;
-  description: string;
-  administrator: boolean;
-  editor: boolean;
-  viewer: boolean;
 }
 
 export default function SettingsPage() {
@@ -447,72 +426,6 @@ export default function SettingsPage() {
     };
     
     return dayNames[day] || day;
-  };
-  
-  // Perfis de usuário
-  const fetchUserProfiles = async () => {
-    try {
-      // Mock data for now - in a real app, this would come from your user database
-      setUserProfiles([
-        { id: "1", email: "admin@example.com", role: "administrator", created_at: "2025-01-01" },
-        { id: "2", email: "editor@example.com", role: "editor", created_at: "2025-01-02" },
-        { id: "3", email: "viewer@example.com", role: "viewer", created_at: "2025-01-03" }
-      ]);
-    } catch (error) {
-      console.error("Erro ao buscar perfis de usuário:", error);
-      toast.error("Erro ao carregar perfis de usuário");
-    }
-  };
-  
-  const handleUserProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    try {
-      // Mock update for now
-      if (selectedUser) {
-        // Update existing user role
-        setUserProfiles(prev => 
-          prev.map(user => 
-            user.id === selectedUser.id 
-              ? {...user, role: selectedRole} 
-              : user
-          )
-        );
-        toast.success("Perfil de usuário atualizado com sucesso!");
-      } else {
-        // In a real app, this would create a user or update permissions
-        toast.success("Perfil de usuário atualizado com sucesso!");
-      }
-      
-      setIsUserDialogOpen(false);
-      setSelectedUser(null);
-      setSelectedRole("viewer");
-    } catch (error) {
-      console.error("Erro ao salvar perfil de usuário:", error);
-      toast.error("Erro ao salvar perfil de usuário");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const editUserProfile = (user: UserProfile) => {
-    setSelectedUser(user);
-    setSelectedRole(user.role);
-    setIsUserDialogOpen(true);
-  };
-  
-  const getRoleName = (roleId: string): string => {
-    return userRoles.find(role => role.id === roleId)?.name || roleId;
-  };
-  
-  const togglePermission = (id: string, role: 'administrator' | 'editor' | 'viewer', currentValue: boolean) => {
-    const updatedPermissions = permissions.map(permission => 
-      permission.id === id 
-        ? {...permission, [role]: !currentValue} 
-        : permission
-    );
-    setPermissions(updatedPermissions);
   };
   
   return (

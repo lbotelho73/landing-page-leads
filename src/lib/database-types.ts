@@ -29,6 +29,12 @@ export interface UserProfile {
   created_at?: string;
 }
 
+export interface Permission {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 // Function to help with type safety when using dynamic table names
 export function asDbTable<T extends DatabaseTablesType>(tableName: T): T;
 export function asDbTable(tableName: string): DatabaseTablesType;

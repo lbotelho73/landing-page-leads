@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { UserProfile, UserProfileRole, Permission } from "@/database.types";
+import { UserProfile, UserProfileRole, Permission } from "@/lib/database-types";
 import { 
   Dialog, 
   DialogContent, 

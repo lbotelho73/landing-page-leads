@@ -9,7 +9,6 @@ export interface FileUploadSectionProps {
   isImporting?: boolean;
   onFileUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   fileData?: any[] | null;
-  onFileData?: (data: any[], fileName: string) => void;
 }
 
 export function FileUploadSection({ 
@@ -17,7 +16,6 @@ export function FileUploadSection({
   isImporting = false, 
   onFileUpload,
   fileData = null,
-  onFileData
 }: FileUploadSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -37,7 +35,7 @@ export function FileUploadSection({
                 : ".json"
           }
           className="hidden"
-          onChange={onFileUpload || (() => {})}
+          onChange={onFileUpload}
           disabled={isImporting}
         />
         <label 

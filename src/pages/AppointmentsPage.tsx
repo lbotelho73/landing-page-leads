@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -6,12 +7,11 @@ import { PlusCircle, Search, Trash } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { AppointmentForm } from "@/components/appointments/AppointmentForm";
 import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
 import { AppointmentStatusSelect } from "@/components/appointments/AppointmentStatusSelect";
@@ -26,7 +26,7 @@ export default function AppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateRange, setDateRange] = useState<DateRange>({ 
+  const [dateRange, setDateRange] = useState<{ from: Date; to?: Date }>({ 
     from: new Date(), 
     to: undefined
   });
@@ -397,4 +397,3 @@ export default function AppointmentsPage() {
     </AppLayout>
   );
 }
-

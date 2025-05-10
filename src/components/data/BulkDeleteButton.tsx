@@ -1,91 +1,99 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { BulkDeleteDialog } from "./BulkDeleteDialog";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { DatabaseTablesType } from "@/lib/database-types";
+import { toast } from "sonner";
+import { asDbTable } from "@/lib/database-types";
 
-// Define the props interface for the component
 export interface BulkDeleteButtonProps {
-  tableName: DatabaseTablesType;
-  customFilter?: Record<string, any>;
-  onSuccess?: () => void;
+  tableName: string;
+  onSuccess: () => void;
+  displayFields?: string[];
+  displayLabels?: string[];
   buttonText?: string;
-  buttonVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  buttonVariant?: string;
 }
 
-export function BulkDeleteButton({ 
-  tableName, 
-  customFilter, 
+export function BulkDeleteButton({
+  tableName,
   onSuccess,
-  buttonText = "Excluir Todos",
-  buttonVariant = "destructive"
+  displayFields = ["id"],
+  displayLabels = ["ID"],
+  buttonText = "Importação em Massa",
+  buttonVariant = "outline",
 }: BulkDeleteButtonProps) {
-  const [showDialog, setShowDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  
-  const executeDelete = async () => {
-    setIsDeleting(true);
-    
+  const [isOpen, setIsOpen] = useState(false);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleOpen = async () => {
+    setLoading(true);
     try {
-      console.log(`Executing bulk delete on table: ${tableName}`);
-      
-      // Cast the table name to any to avoid TypeScript recursion errors
-      // This is safe because we know tableName is constrained to DatabaseTablesType
-      const deleteQuery = supabase
-        .from(tableName as any)
-        .delete();
-      
-      // Apply custom filter if provided
-      let finalQuery = deleteQuery;
-      if (customFilter) {
-        Object.entries(customFilter).forEach(([column, value]) => {
-          finalQuery = finalQuery.eq(column, value);
-        });
-      } else {
-        // If no filter provided, confirm we want to delete all
-        finalQuery = finalQuery.neq('id', null);
-      }
-      
-      const { error } = await finalQuery;
-      
+      // Fetch all items from the table
+      const { data, error } = await supabase
+        .from(asDbTable(tableName))
+        .select("*")
+        .order("created_at", { ascending: false });
+
       if (error) throw error;
       
-      console.log(`Deleted records from ${tableName}`);
-      toast.success(`Registros excluídos com sucesso!`);
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      
-      setShowDialog(false);
+      setItems(data || []);
+      setIsOpen(true);
     } catch (error: any) {
-      console.error("Error during bulk delete:", error);
-      toast.error(`Erro ao excluir registros: ${error.message || 'Erro desconhecido'}`);
+      toast.error(`Erro ao carregar dados: ${error.message || String(error)}`);
     } finally {
-      setIsDeleting(false);
+      setLoading(false);
     }
   };
-  
+
+  const handleClose = () => {
+    setIsOpen(false);
+  };
+
+  const handleDelete = async (selectedIds: string[]) => {
+    if (!selectedIds.length) return;
+
+    try {
+      // Delete selected items
+      const { error } = await supabase
+        .from(asDbTable(tableName))
+        .delete()
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast.success(`${selectedIds.length} itens excluídos com sucesso`);
+      onSuccess();
+    } catch (error: any) {
+      toast.error(`Erro ao excluir itens: ${error.message || String(error)}`);
+    } finally {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <>
       <Button
-        variant={buttonVariant}
+        variant={buttonVariant as any}
         size="sm"
-        onClick={() => setShowDialog(true)}
+        onClick={handleOpen}
+        disabled={loading}
       >
-        <Trash className="h-4 w-4 mr-2" />
+        <Trash2 className="mr-2 h-4 w-4" />
         {buttonText}
       </Button>
-      
-      <BulkDeleteDialog 
-        open={showDialog}
-        onOpenChange={setShowDialog}
-        onConfirm={executeDelete}
-        isDeleting={isDeleting}
-        entityName={String(tableName)}
+
+      <BulkDeleteDialog
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        items={items}
+        onDelete={handleDelete}
+        onCancel={handleClose}
+        tableType={tableName}
+        displayFields={displayFields}
+        displayLabels={displayLabels}
       />
     </>
   );

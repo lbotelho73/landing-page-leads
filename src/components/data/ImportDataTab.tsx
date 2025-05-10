@@ -1,6 +1,4 @@
-
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -10,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, FileUp, Loader2 } from 'lucide-react';
-import { parseAndFormatDate } from '@/lib/xlsx-utils';
+import { parseAndFormatDate, excelToJson } from '@/lib/xlsx-utils';
 import { DatabaseTablesType, asDbTable } from '@/lib/database-types';
 
 interface TableOption {
@@ -99,47 +97,29 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
         const data = evt.target?.result;
         if (!data) throw new Error("Falha ao ler arquivo");
         
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+        const jsonData = excelToJson(data as ArrayBuffer);
 
-        if (jsonData.length < 2) {
+        if (!jsonData || jsonData.length < 1) {
           toast.error("O arquivo não contém dados suficientes");
           setLoading(false);
           return;
         }
         
-        // Extract headers (first row)
-        const headers = jsonData[0];
-        if (!Array.isArray(headers) || !headers.length) {
+        // Extract headers from first object's keys
+        const headers = Object.keys(jsonData[0] || {});
+        if (!headers.length) {
           toast.error("Arquivo sem cabeçalhos válidos.");
           setLoading(false);
           return;
         }
 
-        // Ensure all headers are strings
-        const normalizedHeaders: string[] = headers.map(header => 
-          header !== null && header !== undefined ? String(header) : ""
-        ).filter(header => header !== "");
-
-        console.log("Normalized headers:", normalizedHeaders);
-        setCsvHeaders(normalizedHeaders);
-
-        // Process file data (skip header row)
-        const dataRows = jsonData.slice(1).map((row: any[]) => {
-          const obj: Record<string, any> = {};
-          normalizedHeaders.forEach((header, idx) => {
-            if (header) obj[header] = row[idx];
-          });
-          return obj;
-        });
-        
-        setSheetData(dataRows);
-        setPreviewData(dataRows.slice(0, 5));
+        console.log("File headers:", headers);
+        setCsvHeaders(headers);
+        setSheetData(jsonData);
+        setPreviewData(jsonData.slice(0, 5));
         setActiveTab('mapping');
         setFileUploaded(true);
-        toast.success(`Arquivo carregado com ${dataRows.length} registros`);
+        toast.success(`Arquivo carregado com ${jsonData.length} registros`);
       } catch (error: any) {
         console.error("Erro ao processar arquivo:", error);
         toast.error(`Erro ao processar o arquivo: ${error.message || String(error)}`);
@@ -158,42 +138,152 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
     }));
   };
 
-  // Find entity ID by name for foreign key references
+  // Find entity ID by name with improved search - critical fix for customer import
   const findEntityIdByName = async (tableName: string, nameField: string, nameValue: string) => {
     if (!nameValue) return null;
     
     try {
-      console.log(`Finding entity ID in table ${tableName} for name ${nameValue}`);
+      console.log(`Finding entity ID in table ${tableName} for name "${nameValue}"`);
       
-      // Use a different query depending on the table
-      let query;
-      
-      if (tableName === 'customers' || tableName === 'professionals') {
-        // For entities with first_name and last_name
-        query = supabase
-          .from(asDbTable(tableName))
-          .select('id')
-          .or(`first_name.ilike."%${nameValue}%",last_name.ilike."%${nameValue}%",first_name||' '||last_name.ilike."%${nameValue}%"`)
-          .limit(1);
-      } else {
-        // For entities with just name
-        query = supabase
+      // Enhanced search logic based on table type
+      if (tableName === 'customers') {
+        // Split name into parts and search for first name or last name matches
+        const nameParts = nameValue.trim().split(/\s+/);
+        
+        if (nameParts.length === 0) return null;
+        
+        // Try different search strategies
+        const strategies = [
+          // Strategy 1: If name has multiple parts, assume first part is first name and rest is last name
+          async () => {
+            if (nameParts.length > 1) {
+              const firstName = nameParts[0];
+              const lastName = nameParts.slice(1).join(' ');
+              
+              console.log(`Strategy 1: Trying with first_name='${firstName}' and last_name='${lastName}'`);
+              
+              const { data, error } = await supabase
+                .from('customers')
+                .select('id')
+                .eq('first_name', firstName)
+                .eq('last_name', lastName)
+                .limit(1);
+                
+              if (error) {
+                console.error("Error in search strategy 1:", error);
+                return null;
+              }
+              
+              if (data && data.length > 0) {
+                console.log(`Found customer with exact name match: ${data[0].id}`);
+                return data[0].id;
+              }
+              return null;
+            }
+            return null;
+          },
+          
+          // Strategy 2: Search for first name like any part of the provided name
+          async () => {
+            console.log(`Strategy 2: Trying with first_name LIKE any part of "${nameValue}"`);
+            
+            const { data, error } = await supabase
+              .from('customers')
+              .select('id, first_name, last_name')
+              .ilike('first_name', `%${nameValue}%`)
+              .limit(5);
+              
+            if (error) {
+              console.error("Error in search strategy 2:", error);
+              return null;
+            }
+            
+            // If we get results, use the best match
+            if (data && data.length > 0) {
+              console.log(`Found ${data.length} customers with first name containing "${nameValue}"`, data);
+              // Use first result for simplicity
+              return data[0].id;
+            }
+            return null;
+          },
+          
+          // Strategy 3: Search for last name like any part of the provided name
+          async () => {
+            console.log(`Strategy 3: Trying with last_name LIKE any part of "${nameValue}"`);
+            
+            const { data, error } = await supabase
+              .from('customers')
+              .select('id, first_name, last_name')
+              .ilike('last_name', `%${nameValue}%`)
+              .limit(5);
+              
+            if (error) {
+              console.error("Error in search strategy 3:", error);
+              return null;
+            }
+            
+            if (data && data.length > 0) {
+              console.log(`Found ${data.length} customers with last name containing "${nameValue}"`, data);
+              return data[0].id;
+            }
+            return null;
+          },
+          
+          // Strategy 4: Get all customers and do manual string comparison to find best match
+          async () => {
+            console.log(`Strategy 4: Trying full text search on all customers`);
+            
+            const { data, error } = await supabase
+              .from('customers')
+              .select('id, first_name, last_name')
+              .limit(100);
+              
+            if (error) {
+              console.error("Error fetching all customers:", error);
+              return null;
+            }
+            
+            if (data && data.length > 0) {
+              // Find the customer with name most similar to the input
+              const matchedCustomer = data.find(customer => {
+                const fullName = `${customer.first_name} ${customer.last_name}`.toLowerCase();
+                return fullName.includes(nameValue.toLowerCase());
+              });
+              
+              if (matchedCustomer) {
+                console.log(`Found matching customer via text search: ${matchedCustomer.id} - ${matchedCustomer.first_name} ${matchedCustomer.last_name}`);
+                return matchedCustomer.id;
+              }
+            }
+            return null;
+          }
+        ];
+        
+        // Try each strategy in sequence until one succeeds
+        for (const strategy of strategies) {
+          const result = await strategy();
+          if (result) return result;
+        }
+        
+        console.warn(`No customer found with name matching "${nameValue}" after trying all strategies`);
+        return null;
+      } else if (tableName === 'professionals' || tableName === 'services' || tableName === 'payment_methods') {
+        // For other entities, use simple name search with ILIKE
+        const { data, error } = await supabase
           .from(asDbTable(tableName))
           .select('id')
           .ilike('name', `%${nameValue}%`)
           .limit(1);
-      }
-      
-      const { data, error } = await query;
+          
+        if (error) {
+          console.error(`Error finding ${tableName} by name:`, error);
+          return null;
+        }
         
-      if (error) {
-        console.error(`Error finding ${tableName} by name:`, error);
-        return null;
-      }
-      
-      if (data && data.length > 0) {
-        console.log(`Found entity in ${tableName}:`, data[0]);
-        return data[0].id;
+        if (data && data.length > 0) {
+          console.log(`Found entity in ${tableName}:`, data[0]);
+          return data[0].id;
+        }
       }
       
       console.warn(`No entity found in ${tableName} for name: ${nameValue}`);
@@ -285,9 +375,10 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
             const customerId = await findEntityIdByName('customers', 'name', value);
             if (customerId) {
               preparedItem[dbField] = customerId;
+              console.log(`Mapped customer name "${value}" to ID: ${customerId}`);
             } else {
-              // Skip this record if we can't find the referenced entity
               console.warn(`Could not find customer with name: ${value}`);
+              // Don't add the item if required customer ID is missing
               continue;
             }
           }
@@ -354,12 +445,14 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
           else {
             preparedItem[dbField] = value;
           }
+        } else if (selectedTable === 'customers') {
+          // Special handling for customer import
+          preparedItem[dbField] = value;
         } else {
           // For other tables, use standard type conversion
           // Handle time fields
           if (dbField === 'time') {
             preparedItem[dbField] = formatTimeValue(value);
-            console.log(`Formatted time value: ${value} -> ${preparedItem[dbField]}`);
           }
           // Handle date fields
           else if (dbField.toLowerCase().includes('date')) {

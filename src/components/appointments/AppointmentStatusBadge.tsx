@@ -1,33 +1,24 @@
 
 import { Badge } from "@/components/ui/badge";
 
-export type AppointmentStatus = "scheduled" | "completed" | "canceled";
-
-export const appointmentStatusMap = {
-  scheduled: {
-    label: "Agendado",
-    variant: "outline" as const,
-  },
-  completed: {
-    label: "Realizado",
-    variant: "success" as const,
-  },
-  canceled: {
-    label: "Cancelado",
-    variant: "destructive" as const,
-  },
-};
-
-interface AppointmentStatusBadgeProps {
-  status: AppointmentStatus;
+export interface AppointmentStatusBadgeProps {
+  status: "scheduled" | "completed" | "canceled";
 }
 
 export function AppointmentStatusBadge({ status }: AppointmentStatusBadgeProps) {
-  const statusInfo = appointmentStatusMap[status];
+  if (status === "completed") {
+    return (
+      <Badge variant="success">Concluído</Badge>
+    );
+  }
+  
+  if (status === "canceled") {
+    return (
+      <Badge variant="destructive">Cancelado</Badge>
+    );
+  }
   
   return (
-    <Badge variant={statusInfo.variant}>
-      {statusInfo.label}
-    </Badge>
+    <Badge variant="outline">Agendado</Badge>
   );
 }

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
-interface FieldMappingProps {
+export interface FieldMappingProps {
   csvHeaders: string[];
   tableColumns: string[];
   mappings: Record<string, string>;

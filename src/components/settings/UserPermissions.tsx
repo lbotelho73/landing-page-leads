@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { UserProfile, UserProfileRole, Permission, RolePermission } from "@/database.types";
+import { UserProfile, UserProfileRole, Permission } from "@/database.types";
 import { 
   Dialog, 
   DialogContent, 
@@ -38,10 +38,10 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Shield, RefreshCw, Loader2 } from "lucide-react";
-import { syncAuthUsersToProfiles } from "@/lib/database-helpers";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function UserPermissions() {
+  // State variables
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -65,20 +65,22 @@ export function UserPermissions() {
     fetchRolePermissions();
   }, []);
 
+  // Fetch users from the user_profiles table
   const fetchUsers = async () => {
     setLoading(true);
     try {
       console.log("Fetching user profiles");
       
       // First, sync users from auth.users to user_profiles to ensure we have up-to-date data
-      const syncResult = await syncAuthUsersToProfiles();
-      console.log("Sync result before fetching users:", syncResult);
-      
-      if (!syncResult.success) {
-        console.warn("Initial sync had issues:", syncResult.message);
+      // Use the stored procedure to ensure this is done correctly
+      const syncResponse = await supabase.rpc('sync_users_to_profiles');
+      if (syncResponse.error) {
+        console.error("Error syncing users:", syncResponse.error);
+      } else {
+        console.log("User sync completed");
       }
       
-      // Fetch all user profiles
+      // Now fetch the user profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("user_profiles")
         .select("*")
@@ -86,10 +88,10 @@ export function UserPermissions() {
 
       if (profilesError) throw profilesError;
 
-      // Type assertion to ensure role is of type UserProfileRole
+      // Type assertion for role
       const typedProfiles = profiles.map(profile => ({
         ...profile,
-        role: profile.role as UserProfileRole
+        role: (profile.role || "viewer") as UserProfileRole
       }));
 
       console.log("Fetched user profiles:", typedProfiles);
@@ -102,6 +104,7 @@ export function UserPermissions() {
     }
   };
 
+  // Fetch all permissions
   const fetchPermissions = async () => {
     try {
       const { data, error } = await supabase
@@ -119,6 +122,7 @@ export function UserPermissions() {
     }
   };
 
+  // Fetch role-permission mappings
   const fetchRolePermissions = async () => {
     try {
       const { data, error } = await supabase
@@ -151,6 +155,7 @@ export function UserPermissions() {
     }
   };
 
+  // Update user role
   const handleRoleChange = async (userId: string, newRole: UserProfileRole) => {
     setSaving(userId);
     try {
@@ -180,6 +185,7 @@ export function UserPermissions() {
     }
   };
 
+  // Delete user profile
   const handleDeleteUser = async (userId: string) => {
     if (!confirm("Tem certeza que deseja excluir este usuário?")) {
       return;
@@ -207,12 +213,14 @@ export function UserPermissions() {
     }
   };
 
+  // Open role permissions dialog
   const handleRolePermissionsOpen = (role: UserProfileRole) => {
     setSelectedRole(role);
     setSelectedPermissions(rolePermissions[role] || []);
     setDialogOpen(true);
   };
 
+  // Toggle permission selection
   const handlePermissionToggle = (permissionId: string) => {
     setSelectedPermissions(prev => 
       prev.includes(permissionId)
@@ -221,6 +229,7 @@ export function UserPermissions() {
     );
   };
 
+  // Save role permissions
   const saveRolePermissions = async () => {
     if (!selectedRole) return;
     
@@ -274,23 +283,24 @@ export function UserPermissions() {
     }
   };
 
+  // Synchronize users from auth.users to user_profiles
   const handleSyncUsers = async () => {
     setSyncingUsers(true);
     setSyncError(null);
     
     try {
       console.log("Starting user synchronization...");
-      const result = await syncAuthUsersToProfiles();
-      console.log("Sync result:", result);
       
-      if (result.success) {
-        toast.success(result.message);
-        // Refresh the user list
-        fetchUsers();
-      } else {
-        setSyncError(result.message);
-        toast.error(result.message);
+      // Call the stored function to sync users
+      const { data, error } = await supabase.rpc('sync_users_to_profiles');
+      
+      if (error) {
+        throw error;
       }
+      
+      toast.success("Usuários sincronizados com sucesso");
+      // Refresh the user list
+      fetchUsers();
     } catch (error: any) {
       const errorMessage = error.message || "Erro ao sincronizar usuários";
       setSyncError(errorMessage);

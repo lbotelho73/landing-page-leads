@@ -72,7 +72,6 @@ export function UserPermissions() {
       console.log("Fetching user profiles");
       
       // First, sync users from auth.users to user_profiles to ensure we have up-to-date data
-      // Use the stored procedure to ensure this is done correctly
       const syncResponse = await supabase.rpc('sync_users_to_profiles');
       if (syncResponse.error) {
         console.error("Error syncing users:", syncResponse.error);

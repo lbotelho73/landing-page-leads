@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -100,33 +99,6 @@ export default function SettingsPage() {
     { day: "sunday", is_working: false, start_time: "10:00", end_time: "16:00" }
   ]);
   
-  // Estados para perfis de usuário
-  const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
-  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [selectedRole, setSelectedRole] = useState("viewer");
-  const [userRoles] = useState<UserRole[]>([
-    { id: "administrator", name: "Administrador", description: "Acesso completo ao sistema" },
-    { id: "editor", name: "Editor", description: "Pode editar registros mas tem limitações" },
-    { id: "viewer", name: "Visualizador", description: "Somente visualização de dados" }
-  ]);
-  
-  // Estados para permissões
-  const [permissions, setPermissions] = useState<Permission[]>([
-    { id: "1", name: "Registro de Usuário", description: "Registrar novos usuários no sistema", administrator: true, editor: false, viewer: false },
-    { id: "2", name: "Gestão de Métodos de Pagamento", description: "Adicionar e editar métodos de pagamento", administrator: true, editor: true, viewer: false },
-    { id: "3", name: "Gestão de Canais de Marketing", description: "Adicionar e editar canais de marketing", administrator: true, editor: true, viewer: false },
-    { id: "4", name: "Gestão de Categorias de Serviço", description: "Adicionar e editar categorias de serviço", administrator: true, editor: true, viewer: false },
-    { id: "5", name: "Configuração de Horários", description: "Definir dias e horários de funcionamento", administrator: true, editor: false, viewer: false },
-    { id: "6", name: "Acesso a Relatórios", description: "Visualizar relatórios financeiros", administrator: true, editor: true, viewer: true },
-    { id: "7", name: "Gestão de Agendamentos", description: "Criar e editar agendamentos", administrator: true, editor: true, viewer: false },
-    { id: "8", name: "Visualizar Agendamentos", description: "Visualizar a agenda de serviços", administrator: true, editor: true, viewer: true },
-    { id: "9", name: "Gestão de Clientes", description: "Adicionar e editar clientes", administrator: true, editor: true, viewer: false },
-    { id: "10", name: "Gestão de Profissionais", description: "Adicionar e editar profissionais", administrator: true, editor: false, viewer: false },
-    { id: "11", name: "Gestão de Serviços", description: "Adicionar e editar serviços oferecidos", administrator: true, editor: true, viewer: false },
-    { id: "12", name: "Gestão de Pagamentos", description: "Registrar e editar pagamentos", administrator: true, editor: true, viewer: false }
-  ]);
-  
   // Estados gerais
   const [isLoading, setIsLoading] = useState(false);
   
@@ -135,7 +107,6 @@ export default function SettingsPage() {
     fetchMarketingChannels();
     fetchServiceCategories();
     fetchWorkingDays();
-    fetchUserProfiles();
   }, []);
   
   // Métodos de pagamento
@@ -986,187 +957,7 @@ export default function SettingsPage() {
           
           {/* Perfis de Usuário */}
           <TabsContent value="user-profiles" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Perfis de Usuário</CardTitle>
-                    <CardDescription>Gerencie os perfis e permissões de usuários do sistema</CardDescription>
-                  </div>
-                  <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        className="bg-massage-500 hover:bg-massage-600"
-                        onClick={() => { setSelectedUser(null); setSelectedRole("viewer"); }}
-                      >
-                        Adicionar Usuário
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <form onSubmit={handleUserProfileSubmit}>
-                        <DialogHeader>
-                          <DialogTitle>
-                            {selectedUser ? "Editar Perfil de Usuário" : "Adicionar Usuário"}
-                          </DialogTitle>
-                          <DialogDescription>
-                            {selectedUser 
-                              ? `Configure o perfil para ${selectedUser.email}` 
-                              : "Adicione um novo usuário ao sistema"}
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          {!selectedUser && (
-                            <div className="grid gap-2">
-                              <Label htmlFor="userEmail">Email</Label>
-                              <Input 
-                                id="userEmail" 
-                                type="email"
-                                placeholder="email@exemplo.com"
-                                required 
-                              />
-                            </div>
-                          )}
-                          <div className="grid gap-2">
-                            <Label htmlFor="userRole">Perfil de Acesso</Label>
-                            <select
-                              id="userRole"
-                              value={selectedRole}
-                              onChange={(e) => setSelectedRole(e.target.value)}
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {userRoles.map(role => (
-                                <option key={role.id} value={role.id}>
-                                  {role.name} - {role.description}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            onClick={() => setIsUserDialogOpen(false)}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button 
-                            type="submit" 
-                            className="bg-massage-500 hover:bg-massage-600" 
-                            disabled={isLoading}
-                          >
-                            {isLoading ? "Salvando..." : "Salvar"}
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Perfil</TableHead>
-                          <TableHead>Data de Criação</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {userProfiles.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center">Nenhum usuário cadastrado</TableCell>
-                          </TableRow>
-                        ) : (
-                          userProfiles.map((user) => (
-                            <TableRow key={user.id}>
-                              <TableCell className="font-medium">{user.email}</TableCell>
-                              <TableCell>
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  user.role === 'administrator' 
-                                    ? 'bg-blue-100 text-blue-700' 
-                                    : user.role === 'editor' 
-                                      ? 'bg-green-100 text-green-700' 
-                                      : 'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {getRoleName(user.role)}
-                                </span>
-                              </TableCell>
-                              <TableCell>{user.created_at}</TableCell>
-                              <TableCell className="text-right">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => editUserProfile(user)}
-                                >
-                                  Editar
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  
-                  <div className="mt-8">
-                    <h3 className="text-lg font-medium mb-3">Permissões por Perfil</h3>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Funcionalidade</TableHead>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead className="text-center">Administrador</TableHead>
-                            <TableHead className="text-center">Editor</TableHead>
-                            <TableHead className="text-center">Visualizador</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {permissions.map((permission) => (
-                            <TableRow key={permission.id}>
-                              <TableCell className="font-medium">{permission.name}</TableCell>
-                              <TableCell>{permission.description}</TableCell>
-                              <TableCell className="text-center">
-                                <Checkbox 
-                                  checked={permission.administrator}
-                                  onCheckedChange={() => togglePermission(permission.id, 'administrator', permission.administrator)}
-                                  aria-label={`Permissão de ${permission.name} para Administrador`}
-                                />
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Checkbox 
-                                  checked={permission.editor}
-                                  onCheckedChange={() => togglePermission(permission.id, 'editor', permission.editor)}
-                                  aria-label={`Permissão de ${permission.name} para Editor`}
-                                />
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Checkbox 
-                                  checked={permission.viewer}
-                                  onCheckedChange={() => togglePermission(permission.id, 'viewer', permission.viewer)}
-                                  aria-label={`Permissão de ${permission.name} para Visualizador`}
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="flex justify-end mt-4">
-                      <Button 
-                        className="bg-massage-500 hover:bg-massage-600"
-                      >
-                        Salvar Permissões
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <UserPermissions />
           </TabsContent>
         </Tabs>
       </div>

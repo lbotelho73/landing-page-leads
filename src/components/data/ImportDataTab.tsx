@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -150,41 +149,152 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
     }));
   };
 
+  // Find entity ID by name for foreign key references
+  const findEntityIdByName = async (tableName: string, nameField: string, nameValue: string) => {
+    if (!nameValue) return null;
+    
+    try {
+      const { data, error } = await supabase
+        .from(asDbTable(tableName))
+        .select('id')
+        .or(`first_name.ilike.%${nameValue}%,last_name.ilike.%${nameValue}%,name.ilike.%${nameValue}%`)
+        .limit(1);
+        
+      if (error) {
+        console.error(`Error finding ${tableName} by name:`, error);
+        return null;
+      }
+      
+      if (data && data.length > 0) {
+        return data[0].id;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Error in findEntityIdByName for ${tableName}:`, error);
+      return null;
+    }
+  };
+
   // Convert Excel data types to appropriate DB types
-  const prepareDataForImport = (data: any[]): any[] => {
-    return data.map(item => {
+  const prepareDataForImport = async (data: any[]): Promise<any[]> => {
+    const preparedItems: any[] = [];
+    
+    for (const item of data) {
       const preparedItem: Record<string, any> = {};
       
-      Object.keys(mappings).forEach(csvField => {
+      for (const csvField in mappings) {
         const dbField = mappings[csvField];
-        if (!dbField) return; // Skip unmapped fields
+        if (!dbField) continue; // Skip unmapped fields
         
         const value = item[csvField];
-        if (value === undefined || value === null) return;
+        if (value === undefined || value === null) continue;
         
-        // Handle date fields - detect by column name
-        if (dbField.toLowerCase().includes('date')) {
-          preparedItem[dbField] = parseAndFormatDate(value);
-        } 
-        // Handle boolean fields
-        else if (typeof value === 'string' && ['true', 'false', 'sim', 'não', 'yes', 'no'].includes(value.toLowerCase())) {
-          const isTrue = ['true', 'sim', 'yes'].includes(value.toLowerCase());
-          preparedItem[dbField] = isTrue;
+        // Handle foreign key references based on field names
+        if (selectedTable === 'appointments') {
+          // Convert entity names to UUIDs
+          if (dbField === 'customer_id' && typeof value === 'string') {
+            const customerId = await findEntityIdByName('customers', 'name', value);
+            if (customerId) {
+              preparedItem[dbField] = customerId;
+            } else {
+              // Skip this record if we can't find the referenced entity
+              console.warn(`Could not find customer with name: ${value}`);
+              continue;
+            }
+          }
+          else if (dbField === 'primary_professional_id' && typeof value === 'string') {
+            const professionalId = await findEntityIdByName('professionals', 'name', value);
+            if (professionalId) {
+              preparedItem[dbField] = professionalId;
+            } else {
+              console.warn(`Could not find professional with name: ${value}`);
+              continue;
+            }
+          }
+          else if (dbField === 'secondary_professional_id' && typeof value === 'string') {
+            // Handle empty secondary professional
+            if (!value.trim()) {
+              preparedItem[dbField] = null;
+            } else {
+              const professionalId = await findEntityIdByName('professionals', 'name', value);
+              preparedItem[dbField] = professionalId; // Can be null
+            }
+          }
+          else if (dbField === 'service_id' && typeof value === 'string') {
+            const serviceId = await findEntityIdByName('services', 'name', value);
+            if (serviceId) {
+              preparedItem[dbField] = serviceId;
+            } else {
+              console.warn(`Could not find service with name: ${value}`);
+              continue;
+            }
+          }
+          else if (dbField === 'payment_method_id' && typeof value === 'string') {
+            const paymentMethodId = await findEntityIdByName('payment_methods', 'name', value);
+            if (paymentMethodId) {
+              preparedItem[dbField] = paymentMethodId;
+            } else {
+              console.warn(`Could not find payment method with name: ${value}`);
+              continue;
+            }
+          }
+          // Handle date fields - detect by column name
+          else if (dbField.toLowerCase().includes('date')) {
+            preparedItem[dbField] = parseAndFormatDate(value);
+          } 
+          // Handle boolean fields
+          else if (typeof value === 'string' && ['true', 'false', 'sim', 'não', 'yes', 'no'].includes(value.toLowerCase())) {
+            const isTrue = ['true', 'sim', 'yes'].includes(value.toLowerCase());
+            preparedItem[dbField] = isTrue;
+          }
+          // Handle numeric fields
+          else if (!isNaN(Number(value)) && (
+               dbField.toLowerCase().includes('price') 
+            || dbField.toLowerCase().includes('percentage') 
+            || dbField.toLowerCase().includes('amount')
+            || dbField.toLowerCase().includes('duration')
+          )) {
+            preparedItem[dbField] = Number(value);
+          } 
+          // Default: keep as is (usually string)
+          else {
+            preparedItem[dbField] = value;
+          }
+        } else {
+          // For other tables, use standard type conversion
+          // Handle date fields
+          if (dbField.toLowerCase().includes('date')) {
+            preparedItem[dbField] = parseAndFormatDate(value);
+          } 
+          // Handle boolean fields
+          else if (typeof value === 'string' && ['true', 'false', 'sim', 'não', 'yes', 'no'].includes(value.toLowerCase())) {
+            const isTrue = ['true', 'sim', 'yes'].includes(value.toLowerCase());
+            preparedItem[dbField] = isTrue;
+          }
+          // Handle numeric fields
+          else if (!isNaN(Number(value)) && (
+               dbField.toLowerCase().includes('price') 
+            || dbField.toLowerCase().includes('percentage') 
+            || dbField.toLowerCase().includes('amount')
+            || dbField.toLowerCase().includes('duration')
+          )) {
+            preparedItem[dbField] = Number(value);
+          } 
+          // Default: keep as is (usually string)
+          else {
+            preparedItem[dbField] = value;
+          }
         }
-        // Handle numeric fields
-        else if (!isNaN(Number(value)) && dbField.toLowerCase().includes('price') || 
-                 dbField.toLowerCase().includes('percentage') || 
-                 dbField.toLowerCase().includes('amount')) {
-          preparedItem[dbField] = Number(value);
-        } 
-        // Default: keep as is (usually string)
-        else {
-          preparedItem[dbField] = value;
-        }
-      });
+      }
       
-      return preparedItem;
-    });
+      // Only add items that have at least some fields mapped
+      if (Object.keys(preparedItem).length > 0) {
+        preparedItems.push(preparedItem);
+      }
+    }
+    
+    return preparedItems;
   };
 
   // Function for data import
@@ -205,15 +315,21 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
     setImportProgress(0);
     
     try {
-      const preparedData = prepareDataForImport(sheetData);
+      const preparedData = await prepareDataForImport(sheetData);
       console.log("Prepared data:", preparedData);
+      
+      if (preparedData.length === 0) {
+        toast.error("Nenhum dado válido para importar após conversão");
+        setLoading(false);
+        return;
+      }
       
       let successCount = 0;
       let failedCount = 0;
       const errors: string[] = [];
       
       // Process in batches of 100 items
-      const batchSize = 100;
+      const batchSize = 20;
       const totalBatches = Math.ceil(preparedData.length / batchSize);
       
       for (let i = 0; i < preparedData.length; i += batchSize) {
@@ -227,7 +343,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
         if (error) {
           console.error("Error inserting batch:", error);
           failedCount += batch.length;
-          errors.push(`Erro no lote ${i/batchSize + 1}: ${error.message}`);
+          errors.push(`Erro no lote ${Math.floor(i/batchSize) + 1}: ${error.message}`);
         } else {
           successCount += batch.length;
         }

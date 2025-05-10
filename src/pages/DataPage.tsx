@@ -6,7 +6,7 @@ import { FileUp, FileDown } from "lucide-react";
 import ptBR from "@/lib/i18n";
 import { ExportDataTab } from "@/components/data/ExportDataTab";
 import ImportDataTab from "@/components/data/ImportDataTab";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { checkAndInitializeTable } from "@/lib/database-helpers";
 import { asDbTable } from "@/lib/database-types";
@@ -65,18 +65,16 @@ export default function DataPage() {
         </div>
         
         {isLoading ? (
-          <Alert>
-            <AlertDescription>
-              Verificando tabelas do banco de dados...
-            </AlertDescription>
-          </Alert>
+          <div className="text-center py-4 text-muted-foreground">
+            Verificando tabelas do banco de dados...
+          </div>
         ) : !tablesReady ? (
-          <Alert variant="destructive">
+          <div className="py-4 text-destructive">
             <AlertDescription>
               Algumas tabelas necessárias não foram encontradas no banco de dados.
               Por favor, verifique a configuração do banco de dados.
             </AlertDescription>
-          </Alert>
+          </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList>

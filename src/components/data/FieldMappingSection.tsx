@@ -39,6 +39,7 @@ export function FieldMappingSection({
   const [loading, setLoading] = useState(false);
   const [availableColumns, setAvailableColumns] = useState<string[]>(tableColumns);
   
+  // Fetch columns when table changes
   useEffect(() => {
     const fetchTableColumns = async () => {
       if (!selectedTable) {
@@ -86,6 +87,7 @@ export function FieldMappingSection({
     fetchTableColumns();
   }, [selectedTable]);
   
+  // Filter headers based on search term
   useEffect(() => {
     if (searchTerm) {
       const filtered = csvHeaders.filter(header => 
@@ -97,6 +99,24 @@ export function FieldMappingSection({
     }
   }, [searchTerm, csvHeaders]);
   
+  // Auto-map fields when available
+  useEffect(() => {
+    if (csvHeaders.length > 0 && availableColumns.length > 0) {
+      const initialMappings: Record<string, string> = {};
+      csvHeaders.forEach(header => {
+        if (header && typeof header === 'string') {
+          const guess = guessMatchingColumn(header);
+          if (guess) {
+            initialMappings[header] = guess;
+            onMappingChange(header, guess);
+          }
+        }
+      });
+      console.log("Auto-mapped fields:", initialMappings);
+    }
+  }, [csvHeaders, availableColumns]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Helper function to guess matching column
   const guessMatchingColumn = (csvHeader: string): string => {
     if (!csvHeader || typeof csvHeader !== 'string') return "";
     
@@ -123,21 +143,6 @@ export function FieldMappingSection({
     return match || "";
   };
   
-  useEffect(() => {
-    if (csvHeaders.length > 0 && availableColumns.length > 0) {
-      const initialMappings: Record<string, string> = {};
-      csvHeaders.forEach(header => {
-        if (header && typeof header === 'string') {
-          const guess = guessMatchingColumn(header);
-          if (guess) {
-            initialMappings[header] = guess;
-            onMappingChange(header, guess);
-          }
-        }
-      });
-    }
-  }, [csvHeaders, availableColumns]); // eslint-disable-line react-hooks/exhaustive-deps
-  
   return (
     <Card>
       <CardContent className="pt-6">
@@ -162,7 +167,7 @@ export function FieldMappingSection({
             </Select>
           </div>
           
-          {(fileUploaded && filteredHeaders.length > 0) && (
+          {(selectedTable) && (
             <div>
               <Label htmlFor="search-field">Buscar campos</Label>
               <Input
@@ -192,7 +197,7 @@ export function FieldMappingSection({
               <div className="text-center text-muted-foreground py-4">
                 Nenhuma coluna encontrada para esta tabela
               </div>
-            ) : !fileUploaded ? (
+            ) : !fileUploaded && csvHeaders.length === 0 ? (
               <div className="text-center text-muted-foreground py-4">
                 Faça o upload do arquivo para mapear campos
               </div>

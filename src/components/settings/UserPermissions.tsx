@@ -33,12 +33,11 @@ import {
   DialogDescription, 
   DialogFooter, 
   DialogHeader, 
-  DialogTitle,
-  DialogTrigger 
+  DialogTitle
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, Shield, RefreshCw } from "lucide-react";
+import { AlertCircle, Shield, RefreshCw, Loader2 } from "lucide-react";
 import { syncAuthUsersToProfiles } from "@/lib/database-helpers";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -59,6 +58,7 @@ export function UserPermissions() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Fetch data when component mounts
   useEffect(() => {
     fetchUsers();
     fetchPermissions();
@@ -68,10 +68,21 @@ export function UserPermissions() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
+      console.log("Fetching user profiles");
+      
+      // First, sync users from auth.users to user_profiles to ensure we have up-to-date data
+      const syncResult = await syncAuthUsersToProfiles();
+      console.log("Sync result before fetching users:", syncResult);
+      
+      if (!syncResult.success) {
+        console.warn("Initial sync had issues:", syncResult.message);
+      }
+      
       // Fetch all user profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("user_profiles")
-        .select("*");
+        .select("*")
+        .order('email');
 
       if (profilesError) throw profilesError;
 
@@ -315,8 +326,17 @@ export function UserPermissions() {
             className="flex items-center"
             disabled={syncingUsers}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${syncingUsers ? 'animate-spin' : ''}`} />
-            {syncingUsers ? 'Sincronizando...' : 'Sincronizar Usuários'}
+            {syncingUsers ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Sincronizar Usuários
+              </>
+            )}
           </Button>
         </CardHeader>
         <CardContent>
@@ -330,7 +350,10 @@ export function UserPermissions() {
           )}
 
           {loading ? (
-            <div className="text-center py-4">Carregando usuários...</div>
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Carregando usuários...</span>
+            </div>
           ) : users.length === 0 ? (
             <div className="text-center py-4 text-muted-foreground">
               Nenhum usuário encontrado. Clique em "Sincronizar Usuários" para importar usuários do sistema de autenticação.
@@ -474,7 +497,12 @@ export function UserPermissions() {
               onClick={saveRolePermissions} 
               disabled={savingPermissions || !selectedRole}
             >
-              {savingPermissions ? "Salvando..." : "Salvar Permissões"}
+              {savingPermissions ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : "Salvar Permissões"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -225,10 +226,13 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
   };
 
   // Format time values from various formats to HH:MM:SS
-  const formatTimeValue = (value: any): string | null => {
-    if (!value) return null;
+  const formatTimeValue = (value: any): string => {
+    if (!value) {
+      // CRITICAL FIX: Return default time instead of null to prevent not-null constraint violation
+      return '00:00:00';
+    }
     
-    // If already in time format HH:MM:SS
+    // If already in time format HH:MM:SS or HH:MM
     if (typeof value === 'string' && /^\d{1,2}:\d{2}(:\d{2})?$/.test(value)) {
       // Ensure it has seconds if not present
       if (!value.includes(':', value.indexOf(':') + 1)) {
@@ -257,8 +261,8 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
       console.log(`Could not parse time from: ${value}`);
     }
     
-    // Default fallback - return null for invalid time
-    return null;
+    // Default fallback - return default time instead of null
+    return '00:00:00';
   };
 
   // Convert Excel data types to appropriate DB types
@@ -273,7 +277,6 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
         if (!dbField) continue; // Skip unmapped fields
         
         const value = item[csvField];
-        if (value === undefined || value === null) continue;
         
         // Handle foreign key references based on field names
         if (selectedTable === 'appointments') {
@@ -324,16 +327,10 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
               continue;
             }
           }
-          // Handle time field explicitly
+          // Handle time field explicitly - CRITICAL FIX: Always ensure time is not null
           else if (dbField === 'time') {
-            const formattedTime = formatTimeValue(value);
-            if (formattedTime) {
-              preparedItem[dbField] = formattedTime;
-            } else {
-              console.warn(`Invalid time value: ${value}`);
-              // Since time is NOT NULL, we must have a value - use a default
-              preparedItem[dbField] = '00:00:00';
-            }
+            preparedItem[dbField] = formatTimeValue(value);
+            console.log(`Formatted time value: ${value} -> ${preparedItem[dbField]}`);
           }
           // Handle date fields - detect by column name
           else if (dbField.toLowerCase().includes('date')) {
@@ -361,13 +358,8 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
           // For other tables, use standard type conversion
           // Handle time fields
           if (dbField === 'time') {
-            const formattedTime = formatTimeValue(value);
-            if (formattedTime) {
-              preparedItem[dbField] = formattedTime;
-            } else {
-              console.warn(`Invalid time value: ${value} for field ${dbField}`);
-              continue;
-            }
+            preparedItem[dbField] = formatTimeValue(value);
+            console.log(`Formatted time value: ${value} -> ${preparedItem[dbField]}`);
           }
           // Handle date fields
           else if (dbField.toLowerCase().includes('date')) {
@@ -391,6 +383,14 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
           else {
             preparedItem[dbField] = value;
           }
+        }
+      }
+      
+      // Special case for appointments table - ensure required fields are present
+      if (selectedTable === 'appointments') {
+        // Ensure time field is not null for appointments
+        if (!preparedItem.time) {
+          preparedItem.time = '00:00:00';
         }
       }
       

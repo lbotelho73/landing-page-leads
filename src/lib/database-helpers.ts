@@ -161,8 +161,8 @@ export async function getTableColumns(tableName: DatabaseTablesType): Promise<st
  */
 export async function syncAuthUsersToProfiles(): Promise<{ success: boolean; message: string; }> {
   try {
-    // This will call a Supabase RPC function that we'll create
-    const { error } = await supabase.rpc("sync_users_to_profiles");
+    // Use a type assertion to allow any RPC function name
+    const { error } = await supabase.rpc("sync_users_to_profiles" as any);
     
     if (error) {
       console.error("Error syncing auth users to profiles:", error);

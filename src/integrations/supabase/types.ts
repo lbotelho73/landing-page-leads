@@ -621,6 +621,10 @@ export type Database = {
           column_name: string
         }[]
       }
+      sync_users_to_profiles: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,6 +42,8 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
   const fetchTableColumns = async (tableName: string) => {
     try {
       setLoading(true);
+      console.log(`Fetching columns for table: ${tableName}`);
+      
       const { data, error } = await supabase.rpc('get_table_columns', { table_name: tableName });
       
       if (error) throw error;
@@ -58,6 +61,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
         });
       }
       
+      console.log(`Retrieved ${columns.length} columns for table ${tableName}:`, columns);
       setTableColumns(columns);
     } catch (error: any) {
       console.error("Error fetching columns:", error);
@@ -70,6 +74,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
 
   useEffect(() => {
     if (selectedTable) {
+      console.log("Selected table changed to:", selectedTable);
       fetchTableColumns(selectedTable);
       setSheetData([]);
       setPreviewData([]);
@@ -154,11 +159,28 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
     if (!nameValue) return null;
     
     try {
-      const { data, error } = await supabase
-        .from(asDbTable(tableName))
-        .select('id')
-        .or(`first_name.ilike.%${nameValue}%,last_name.ilike.%${nameValue}%,name.ilike.%${nameValue}%`)
-        .limit(1);
+      console.log(`Finding entity ID in table ${tableName} for name ${nameValue}`);
+      
+      // Use a different query depending on the table
+      let query;
+      
+      if (tableName === 'customers' || tableName === 'professionals') {
+        // For entities with first_name and last_name
+        query = supabase
+          .from(asDbTable(tableName))
+          .select('id')
+          .or(`first_name.ilike."%${nameValue}%",last_name.ilike."%${nameValue}%",first_name||' '||last_name.ilike."%${nameValue}%"`)
+          .limit(1);
+      } else {
+        // For entities with just name
+        query = supabase
+          .from(asDbTable(tableName))
+          .select('id')
+          .ilike('name', `%${nameValue}%`)
+          .limit(1);
+      }
+      
+      const { data, error } = await query;
         
       if (error) {
         console.error(`Error finding ${tableName} by name:`, error);
@@ -166,9 +188,11 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
       }
       
       if (data && data.length > 0) {
+        console.log(`Found entity in ${tableName}:`, data[0]);
         return data[0].id;
       }
       
+      console.warn(`No entity found in ${tableName} for name: ${nameValue}`);
       return null;
     } catch (error) {
       console.error(`Error in findEntityIdByName for ${tableName}:`, error);
@@ -328,7 +352,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
       let failedCount = 0;
       const errors: string[] = [];
       
-      // Process in batches of 100 items
+      // Process in batches of 20 items
       const batchSize = 20;
       const totalBatches = Math.ceil(preparedData.length / batchSize);
       

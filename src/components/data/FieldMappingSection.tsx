@@ -11,6 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { asDbTable } from "@/lib/database-types";
+import { Loader2 } from "lucide-react";
 
 interface FieldMappingProps {
   csvHeaders: string[];
@@ -42,13 +44,22 @@ export function FieldMappingSection({
         setAvailableColumns([]);
         return;
       }
+      
       setLoading(true);
+      
       try {
-        const { data, error } = await supabase.rpc('get_table_columns', { table_name: selectedTable });
+        console.log(`Fetching columns for table: ${selectedTable}`);
+        const { data, error } = await supabase.rpc('get_table_columns', { 
+          table_name: selectedTable 
+        });
+        
         if (error) {
           console.error("Error fetching columns:", error);
           return;
         }
+        
+        console.log("Columns data received:", data);
+        
         if (data && Array.isArray(data)) {
           // Ensure all column names are strings
           const columnNames = data.map(col => {
@@ -57,7 +68,12 @@ export function FieldMappingSection({
             }
             return String(col);
           }).filter(Boolean);
+          
+          console.log("Processed column names:", columnNames);
           setAvailableColumns(columnNames);
+        } else {
+          console.warn("No columns data received or invalid format");
+          setAvailableColumns([]);
         }
       } catch (error) { 
         console.error("Error in fetch:", error);
@@ -65,6 +81,7 @@ export function FieldMappingSection({
         setLoading(false); 
       }
     };
+    
     fetchTableColumns();
   }, [selectedTable]);
   
@@ -128,7 +145,10 @@ export function FieldMappingSection({
             <Label htmlFor="table-select">Selecione a tabela para importação</Label>
             <Select 
               value={selectedTable || ''} 
-              onValueChange={onTableChange}
+              onValueChange={(value) => {
+                console.log("Table selected:", value);
+                onTableChange(value);
+              }}
             >
               <SelectTrigger id="table-select" className="w-full">
                 <SelectValue placeholder="Selecione a tabela" />
@@ -155,12 +175,21 @@ export function FieldMappingSection({
         </div>
         
         {loading ? (
-          <div className="text-center py-4">Carregando colunas da tabela...</div>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-muted-foreground">Carregando colunas da tabela...</span>
+          </div>
         ) : (
           <div className="space-y-4 max-h-[400px] overflow-y-auto">
-            {filteredHeaders.length === 0 ? (
+            {availableColumns.length === 0 ? (
               <div className="text-center text-muted-foreground py-4">
-                Nenhum campo encontrado
+                {selectedTable 
+                  ? "Nenhuma coluna encontrada para esta tabela" 
+                  : "Selecione uma tabela para ver as colunas disponíveis"}
+              </div>
+            ) : filteredHeaders.length === 0 ? (
+              <div className="text-center text-muted-foreground py-4">
+                Nenhum campo encontrado com esse termo de busca
               </div>
             ) : (
               filteredHeaders.map((header, index) => (

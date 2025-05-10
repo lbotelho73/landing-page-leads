@@ -1,6 +1,5 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateForSupabase } from "@/lib/supabase-utils";
 import { DatabaseTablesType, asDbTable } from "@/lib/database-types";
 
 /**
@@ -93,7 +92,7 @@ export async function getAllTables(): Promise<{ name: string; columns: string[] 
         if (typeof item === 'object' && item !== null && 'column_name' in item) {
           const columnName = String(item.column_name);
           // Try to extract table name from qualified column name if present
-          if (columnName.includes('.')) {
+          if (columnName && typeof columnName === 'string' && columnName.includes('.')) {
             tableNameSet.add(columnName.split('.')[0]);
           }
         }
@@ -107,7 +106,7 @@ export async function getAllTables(): Promise<{ name: string; columns: string[] 
         // Skip system tables or other non-standard tables
         if (tableName.startsWith('pg_') || tableName === 'unknown') continue;
         
-        const columns = await getTableColumns(asDbTable(tableName));
+        const columns = await getTableColumns(asDbTable(tableName as DatabaseTablesType));
         tables.push({
           name: tableName,
           columns
@@ -127,20 +126,27 @@ export async function getAllTables(): Promise<{ name: string; columns: string[] 
  */
 export async function getTableColumns(tableName: DatabaseTablesType): Promise<string[]> {
   try {
+    console.log(`Getting columns for table: ${tableName}`);
+    
     const { data, error } = await supabase.rpc("get_table_columns", { 
       table_name: tableName 
     });
     
     if (error) throw error;
     
+    console.log(`Raw column data for ${tableName}:`, data);
+    
     if (data && Array.isArray(data)) {
       // Convert complex objects to strings if needed
-      return data.map(item => {
+      const columns = data.map(item => {
         if (typeof item === 'object' && item !== null && 'column_name' in item) {
           return String(item.column_name);
         }
         return String(item);
       });
+      
+      console.log(`Processed columns for ${tableName}:`, columns);
+      return columns;
     }
     
     return [];

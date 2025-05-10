@@ -28,7 +28,7 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRange>({ 
     from: new Date(), 
-    to: undefined 
+    to: undefined
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
@@ -397,3 +397,4 @@ export default function AppointmentsPage() {
     </AppLayout>
   );
 }
+

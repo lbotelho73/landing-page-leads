@@ -2,7 +2,6 @@
 import * as React from "react"
 import { CalendarIcon } from "lucide-react"
 import { addDays, format } from "date-fns"
-import { DateRange } from "react-day-picker"
 import { ptBR } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
@@ -14,12 +13,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-// Re-export DateRange type
-export { DateRange } from "react-day-picker"
+// Define DateRange type since it's not exported directly from react-day-picker
+export type DateRange = {
+  from: Date;
+  to?: Date;
+}
 
 export interface DateRangePickerProps {
-  value: DateRange;
-  onChange: (value: DateRange) => void;
+  value: DateRange | undefined;
+  onChange: (value: DateRange | undefined) => void;
   className?: string;
 }
 
@@ -60,7 +62,10 @@ export function DateRangePicker({
             initialFocus
             mode="range"
             defaultMonth={value?.from}
-            selected={value}
+            selected={{
+              from: value?.from,
+              to: value?.to,
+            }}
             onSelect={onChange}
             numberOfMonths={2}
             locale={ptBR}

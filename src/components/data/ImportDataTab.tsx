@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, FileUp, Loader2 } from 'lucide-react';
 import { parseAndFormatDate } from '@/lib/xlsx-utils';
+import { DatabaseTablesType, asDbTable } from '@/lib/database-types';
 
 interface TableOption {
   id: string;
@@ -219,7 +221,7 @@ const ImportDataTab: React.FC<ImportDataTabProps> = ({ tables }) => {
         
         // Insert data into Supabase
         const { data, error } = await supabase
-          .from(selectedTable)
+          .from(asDbTable(selectedTable))
           .insert(batch);
         
         if (error) {

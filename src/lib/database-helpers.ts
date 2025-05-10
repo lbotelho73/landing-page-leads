@@ -86,10 +86,21 @@ export async function getAllTables(): Promise<{ name: string; columns: string[] 
     if (data && Array.isArray(data)) {
       // Since we're not getting table_name property directly anymore,
       // we need to extract unique table names from the columns information
-      const tableNames = [...new Set(data.map(item => 
-        // Extract table name from column info or use a default
-        typeof item === 'string' ? item.split('.')[0] : 'unknown'
-      ))];
+      const tableNameSet = new Set<string>();
+      
+      // First gather all potential table names
+      data.forEach(item => {
+        if (typeof item === 'object' && item !== null && 'column_name' in item) {
+          const columnName = String(item.column_name);
+          // Try to extract table name from qualified column name if present
+          if (columnName.includes('.')) {
+            tableNameSet.add(columnName.split('.')[0]);
+          }
+        }
+      });
+      
+      // Convert the Set to an array of table names
+      const tableNames = Array.from(tableNameSet);
       
       // Now fetch columns for each identified table
       for (const tableName of tableNames) {
@@ -122,7 +133,17 @@ export async function getTableColumns(tableName: DatabaseTablesType): Promise<st
     
     if (error) throw error;
     
-    return data || [];
+    if (data && Array.isArray(data)) {
+      // Convert complex objects to strings if needed
+      return data.map(item => {
+        if (typeof item === 'object' && item !== null && 'column_name' in item) {
+          return String(item.column_name);
+        }
+        return String(item);
+      });
+    }
+    
+    return [];
   } catch (error) {
     console.error(`Error getting columns for ${tableName}:`, error);
     return [];
